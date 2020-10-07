@@ -1,0 +1,44 @@
+(NC_014551:0.00000,(HE617159:0.00000,NC_009725:0.00000):0.00000):0.00000;
+Strain:NC_014551
+Codon Mismatch:
+Substitution:
+Duplication:Ala_GCA 117, Ile_AUC 118;Ile_AUC 67, Ala_GCA 68;Ile_AUC 38, Ala_GCA 39;Ile_AUC 60, Ala_GCA 61;Ile_AUC 2, Ala_GCA 3;Ile_AUC 8, Ala_GCA 9;
+Deletion:Leu_UUG 77;
+Inversion:
+Transposition:
+Inverted Transposition:
+Strain:HE617159
+Codon Mismatch:
+Substitution:
+Duplication:Val_GUA 40, Thr_ACA 41, Lys_AAA 42, Leu_CUA 43, Gly_GGC 44, Leu_UUA 45, Arg_CGU 46, Pro_CCA 47, Ala_GCA 48;Ile_AUC 2, Ala_GCA 3;Ile_AUC 8, Ala_GCA 9;
+Deletion:
+Inversion:
+Transposition:
+Inverted Transposition:
+Strain:NC_009725
+Codon Mismatch:
+Substitution:
+Duplication:Ala_GCA 110, Ile_AUC 111;Ile_AUC 35, Ala_GCA 36;Ala_GCA 33;
+Deletion:
+Inversion:
+Transposition:
+Inverted Transposition:
+Strain:Ancestor 1
+Codon Mismatch:
+Substitution:Met_AUG 65;
+Duplication:
+Deletion:Leu_UUG 86;
+Inversion:
+Transposition:
+Inverted Transposition:
+Total Deletions: size: 1 count: 2
+Total Duplications: size: 9 count: 1, size: 2 count: 10, size: 1 count: 1
+Size Distribution of Inversions: 
+Size Distribution of Transpositions: 
+Size Distribution of Inverted Transpositions: 
+Total Inversions: 0
+Total Transpositions: 0
+Total Inverted Transpositions: 0
+Total Codon Mismatches: 0
+Total Substitutions: 1
+Total Execution Time: 0.43700003624

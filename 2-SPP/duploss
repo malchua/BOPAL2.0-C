@@ -1,0 +1,1213 @@
+#!/usr/bin/python
+# Krister Swenson                                                  Summer 2012
+#
+# Compute a minimum visible duplication/loss scenario using Psuedoboolean
+# Linear Programming and IBM CPLEX solver.
+#
+# Input can be character based (i.e. each character is a gene) or string
+# based (i.e. strings delimited by ";" or "," are genes).
+#
+# Switches and input format are meant to be consistent with Patrick's c code.
+#
+#
+# ** TO USE: set the environment variable PYTHONPATH to the location of your
+#            cplex python directory.
+#            In bash, do:
+#                export PYTHONPATH=/the/path/to/cplex/python/architecture/
+#
+# ** Since most of the work is done by the linear program, little attention
+#    has been paid to the efficiency of this code.
+#
+#
+#
+
+import os
+import sys
+import getopt
+import re
+import time
+
+#sys.path.append('/u/tremblao/Doctorat/orthogonalEdgeCover/program/networkxGraphGen/networkx-1.6/build/lib/')  #to import networkx
+#sys.path.append('/u/tremblao/DownloadedSourceCode/CPLEX/cplex/python/x86-64_sles10_4.1/')  #to import CPLEX
+sys.path.append('C:/Program Files/IBM/ILOG/CPLEX_Studio129/cplex/python/2.7/x64_win64/')
+
+from collections import defaultdict
+from math import fabs
+from itertools import product,combinations
+from copy import deepcopy
+
+import networkx as nx
+import matplotlib.pyplot as plt
+
+import cplex
+from cplex.exceptions import CplexError
+
+
+#Switches:
+input_files = False
+input_str = False
+show_details = False
+show_runtimes = False
+be_verbose = False
+show_dupgraph = False
+inverted_dups = False
+enforce_ot_match = False
+rotate_genomes = False
+
+#Constants:
+PROHIBIT_LENGTH2 = True   #Automatically add constraints against length2 cycles.
+PRINT_DEBUG = False       #Make debug output
+SLACK_TOLERANCE = 1.0e-5  #The amount of slack we will allow in the solution.
+NAMELEN = 14              #Minimum space left in output for gene names.
+X = "X"                   #The string for genome X in the variables.
+Y = "Y"                   #The string for genome Y in the variables.
+
+ORIGIN = '[o]'
+TERMINUS = '[t]'
+
+
+
+
+#______________________________________________________________________________#
+#|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|#
+#|:=--=:|  FUNCTIONS  |:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|#
+
+
+
+
+def parseGenomes(s1,s2):
+  """
+  Parse the genomes given in the two strings and return a list for each.
+  Rotate the genomes so that the origin is at the beginning.
+  """
+  global NAMELEN,rotate_genomes
+
+  gx = list()
+  gy = list()
+  if(input_str):
+    delim_re = re.compile(r";|,")
+    gx = delim_re.split(s1)
+    gy = delim_re.split(s2)
+  else:
+    gx = list(s1)
+    gy = list(s2)
+  NAMELEN = max(NAMELEN, len(max(gx+gy, key=len))+3)
+
+  if(rotate_genomes):
+    gx = rotateList(gx)
+    gy = rotateList(gy)
+
+  return (gx,gy)
+
+
+def rotateList(g):
+  """
+  Rotate the given genome (which is a list) so that it starts with the origin.
+  """
+  i = 0
+  while i < len(g) and g[i] != ORIGIN:
+    i += 1 
+
+  if(g[i] == ORIGIN): 
+    g = g[i:] + g[:i]
+
+  return g
+
+
+
+def getDups(s):
+  """
+  Get a list of pairs of nonoverlapping substrings of the genome (which is a
+  list) that are identical.
+     e.g.  X = ABCABC,  then {A,B,C,AB,BC,ABC}
+
+  Also check for inverted matches (as long as the signs are inverted).
+  """
+  global inverted_dups
+
+  dups = []   #The list of duplication pairs.
+  substrings = getAllSublists(s)  #List all the substrings (actually, sublists)
+  if(inverted_dups):
+    substrings = substrings + getInverted(substrings)
+  substrings.sort()               #and sort it nicely.
+  for i in xrange(len(substrings)-1):
+    j = i+1
+    while(j < len(substrings) and substrings[i][0] == substrings[j][0]):
+      if(not overlaps(substrings[i][1], substrings[j][1])):
+        dups.append((substrings[i][1],substrings[j][1]))
+        dups.append((substrings[j][1],substrings[i][1]))
+      j += 1
+
+  return set(dups)
+
+
+
+def getInverted(l):
+  """
+  Invert each of the strings in the given list.
+  """
+  retval = deepcopy(l)
+  map(invertAll, retval)
+  return retval
+
+
+
+def invertAll((l, ind)):
+  """
+  Invert the given list and repackage the result with the given indices.
+  """
+  invert(l, (0,len(l)-1))
+
+  
+
+def invert(s, (i,j), signed=True):
+  """
+  Apply the given inversion to the given sequence.
+  """
+  s[i:(j+1)] = reversed(s[i:(j+1)])
+
+  if(signed):
+    invertSigns(s, (i,j))
+
+
+def invertSigns(s, (i,j)):
+  """
+  Switch the signs of the ith through jth elements.
+  """
+  for x in xrange(i,j+1):
+    if(s[x][0] == "-"):
+      s[x] = s[x][1:]
+    else:
+      s[x] = "-"+s[x]
+
+
+
+
+
+def getAllSublists(l):
+  """
+  Return a list of all the sublists of an ordered list.
+  A pair is returned with the sublist and the location of the sublist. 
+  (i.e. (['s','u','b','s','t','r','i','n','g'], (i, j)))
+  """
+  sublists = list()
+  for i in xrange(len(l)):
+    for j in xrange(i+1, len(l)+1):
+      sublists.append((l[i:j], (i,j-1)))
+  return sublists
+
+
+def getMatchingSublists(l1,l2):
+  """
+  Find identical sublists.  Return pairs of indices where they occur.
+  This would be useful to find inversions.
+  """
+  #sl1 = getAllSublists(l1)
+  #sl2 = getAllSublists(l2)
+  return False   #NOT DONE!!!!!!
+  
+
+
+def getMatches(l1,l2):
+  """
+  Get a list of all the matches.  Return pairs of indices.
+  """
+  occ1 = groupOccurences(l1)   #Get the indices for each entry.
+  occ2 = groupOccurences(l2)   #Get the indices for each entry.
+  matches = list()
+  for g in occ1.keys():
+    if(g in occ2):
+      for i1 in occ1[g]:
+        for i2 in occ2[g]:
+          matches.append((i1,i2))
+  return matches
+
+
+def groupOccurences(l):
+  """
+  Group the occurences of the entries into bins with the indices where they
+  occur.
+  """
+  occ = defaultdict(list)
+  for i in xrange(len(l)):
+    occ[l[i]].append(i)
+  return occ
+
+
+
+
+
+
+################################################################################
+## Helper functions to build variable names: ###################################
+
+def lossVar(g,n):
+  return "L"+g+str(n)
+
+def getLoss(loss):
+  """
+  Return the index of the loss.
+  """
+  m = re.match(r"L\D+(\d+)", loss)
+  return int(m.group(1))
+
+def matchVar(i,j):
+  return "M"+str(i)+"-"+str(j)
+
+def getMatch(match):
+  m = re.match(r"\D(\d+)\-(\d+)", match)
+  return (int(m.group(1)), int(m.group(2)))
+
+def dupVar(gid,d1,d2):
+  """
+  Return the name of the duplication variable.  The convention will be that
+  the second interval is the origin and the first is the product.
+  (source is duplicated to product)
+  """
+  return "D"+gid+"["+str(d1[0])+"-"+str(d1[1])+"]["+str(d2[0])+"-"+str(d2[1])+"]"
+
+def dupVarL((gid,d)):
+  """
+  The version of dupVar that takes a single list.
+  """
+  return dupVar(gid,(d[0],d[1]),(d[2],d[3]))
+
+
+def isDup(gid, name):
+  """
+  Return True if the given variable name is a duplication for the given id.
+  """
+  return re.match(r"D"+gid,name)
+
+def getDup(dup):
+  """
+  Extract the intervals from the duplication.
+  """
+  m = re.match(r"D.*\[(\d+)\-(\d+)\]\[(\d+)\-(\d+)\]", dup)
+  return (int(m.group(1)),int(m.group(2)),int(m.group(3)),int(m.group(4)))
+
+
+################################################################################
+## Stuff related to LP: ########################################################
+
+
+
+
+def runLP(gx, gy, matches, dupsx, dupsy):
+  """
+  gx:      genome x
+  gy:      genome y
+  matches: list of pairs of indices corresponding to matches
+  dupsx:   duplications in x
+  dupsy:   duplications in y
+
+  Run the PBLP using CPLEX.
+  """
+  global X,Y,show_runtimes,input_str,show_details,enforce_ot_match
+
+     #Check for origin and terminus:
+  origtermmatches = []
+  if(enforce_ot_match):
+    origtermmatches = getOriginTerminus(gx,gy)
+
+     #Get a list of all the variable names (and their distribution).
+  (my_colnames,numlossx,numlossy,nummatch,numdupx,numdupy)\
+                                = getAllVariables(gx,gy,matches,dupsx,dupsy)
+  numvars = len(my_colnames)
+
+     #Get a list of all matches that conflict (the two cannot coexist).
+  conflicting = getConflictingMatches(matches)
+  nummatchconfl = len(conflicting)
+
+     #The objective function coefficients:
+  obj_coef = ([1.0]*numlossx)+([1.0]*numlossy)+([0]*nummatch)+([1.0]*numdupx)+\
+             ([1.0]*numdupy)
+     #The upper bound for all the variables (they're all binary):
+  my_ub = [1]*numvars
+  my_ctype = ("B"*numvars)
+
+     #The names of the rows:
+  my_rownames = getEqnNames(gx,gy,conflicting)
+  for i in xrange(len(origtermmatches)):
+    my_rownames.append("OT_"+str(i))
+     #The right-hand side for every row will always be 1.
+  my_rhs = [1.0]*(numlossx+numlossy+nummatchconfl+len(origtermmatches))
+     #The sense for all the rows. L is for <= and E is for =.
+  my_sense = ("E"*(numlossx+numlossy))+("L"*nummatchconfl)+\
+             ("E"*len(origtermmatches))
+
+
+       #Now we are ready to setup the CPLEX model:
+  try:
+    prob = cplex.Cplex()
+
+    #prob.parameters.mip.tolerances.mipgap.set(1.0e-6)
+    prob.objective.set_sense(prob.objective.sense.minimize)
+    if(not PRINT_DEBUG):
+      prob.set_results_stream(None)
+      prob.set_warning_stream(None)
+
+      # since lower bounds are all 0.0 (the default), lb is omitted here
+    prob.variables.add(obj = obj_coef, ub = my_ub, names = my_colnames,\
+                       types = my_ctype)
+
+      #Setup the rows (left-hand side of the equations):
+    rows = []                      #The list of rows
+    for i in xrange(numlossx):     #for the losses,
+      variables = getRowVars(X,i,matches,dupsx)
+      rows.append([variables,[1]*len(variables)])
+ 
+    for i in xrange(numlossy):     #for the losses,
+      variables = getRowVars(Y,i,matches,dupsy)
+      rows.append([variables,[1]*len(variables)])
+
+    for (m1,m2) in conflicting:    #for the matches, and
+      rows.append([[matchVar(m1[0],m1[1]),matchVar(m2[0],m2[1])],[1,1]])
+
+    for (mx,my) in origtermmatches:
+      rows.append([[matchVar(mx,my)],[1]])
+
+    prob.linear_constraints.add(lin_expr = rows, senses = my_sense,
+                                rhs = my_rhs, names = my_rownames)
+
+
+    if(PROHIBIT_LENGTH2):          #If we are to probit length 2 cycles:
+      addLen2Constraints(prob,dupsx,dupsy)
+
+
+  except CplexError, exc:
+    print "uh oh, CPLEX error:\n\t"+str(exc)
+    return
+
+  if(be_verbose):
+    print "\n"+getLPstr(prob)
+    sys.stdout.flush()
+
+  timeSTART = time.time()
+
+  cycleFree = False    #This remains False until we find an acyclic solution.
+  truevars = list()    #This will be the solution of the LP.
+  try:
+    while(not cycleFree):
+      if(be_verbose):
+        print "______________________"
+        print "solving the ILP..."
+        sys.stdout.flush()
+
+      prob.solve()
+
+          # solution.get_status() returns an integer code
+      #print "Solution status = " , prob.solution.get_status(), ":",
+          # the following line prints the corresponding string
+      #print prob.solution.status[prob.solution.get_status()]
+      #print "Solution value  = ", prob.solution.get_objective_value()
+
+        #Sanity check:
+      assert(prob.solution.get_status() == 101)  #CPLEX thinks it's optimal.
+      assert(lowSlack(prob))                     #The slack conditions agree.
+      #numcols = prob.variables.get_num()
+      #x     = prob.solution.get_values()
+      #for j in range(numcols):
+      #    print "Column %d:  Value = %10f" % (j, x[j])
+
+
+      truevars = list()
+      x = prob.solution.get_values(0, prob.variables.get_num()-1)
+      if(be_verbose):
+        print "Variable Set:"
+      for j in range(prob.variables.get_num()):
+        if fabs(x[j]) > 1.0e-10:
+          if(be_verbose):
+            print str(prob.variables.get_names(j)),
+            sys.stdout.flush()
+          truevars.append(prob.variables.get_names(j))
+      if(be_verbose):
+        print "\nchecking for cycles..."
+        sys.stdout.flush()
+
+      cycles = getCyclesFromVars(X,truevars)  #Get the cycles in X.
+      cycles += getCyclesFromVars(Y,truevars) #Get the cycles in Y.
+      if(cycles):
+        if(be_verbose):
+          print "\nCycles Found:",cycles,"\n"
+          sys.stdout.flush()
+        (new_rows,new_rhs) = buildNewConstraints(cycles)
+        prob.linear_constraints.add(lin_expr = new_rows,\
+                                    senses = ['L']*len(new_rows),\
+                                    rhs = new_rhs)
+      else:
+        cycleFree = True
+
+  except CplexError, exc:
+    print "uh oh, CPLEX error:\n\t"+str(exc)
+    return
+
+  elapsed = int(time.time() - timeSTART)
+  if(show_runtimes):
+    hours = elapsed/3600
+    minutes = (elapsed - (hours*3600))/60
+    seconds = elapsed - (hours*3600) - (minutes*60)
+    print '**********************************************************'
+    print 'LP running time: '+`hours`+' hour(s), '+`minutes`.zfill(2)+\
+          ' minutes(s) and '+`seconds`.zfill(2)+' second(s)'
+    print '**********************************************************'
+
+  if(show_details):
+    print "\n"+getAnnotatedAlignStr(gx,gy,truevars)
+    #print "Total Cost =",int(prob.solution.get_objective_value())
+    print "Total Cost =",prob.solution.get_objective_value()
+    print
+
+  if(input_str):
+    print "Genome "+X+": "+" , ".join(gx)
+    print "Genome "+Y+": "+" , ".join(gy)
+    #print "Ancestor: "+getAncestorStr(gx,gy,truevars," , ","")
+    print ">Ancestor \n"+getAncestorStr(gx,gy,truevars,",","")  ##OLIMOD
+  else:
+    print "\n"+getAlignStr(gx,gy,truevars)
+    print "Ancestor: "+getAncestorStr(gx,gy,truevars)
+
+
+
+
+def getOriginTerminus(gx,gy):
+  """
+  Return the matches for the characters ORIGIN and TERMINUS.
+  """
+  global ORIGIN,TERMINUS
+
+  term = -1
+  orig = -1
+  for i in xrange(len(gx)):
+    c = gx[i]
+    if(c == ORIGIN):
+      if(orig >= 0):
+        sys.exit("Error: multiple origins found in genome "+X+".")
+      orig = i
+    elif(c == TERMINUS):
+      if(term >= 0):
+        sys.exit("Error: multiple termini found in genome "+X+".")
+      term = i
+
+  retval = []
+  origfound = False
+  termfound = False
+  for i in xrange(len(gy)):
+    c = gy[i]
+    if(c == ORIGIN):
+      if(origfound):
+        sys.exit("Error: multiple origins found in genome "+Y+".")
+      origfound = True
+      if(orig >= 0):
+        retval.append((orig,i))
+      else:
+        sys.exit("Error: mismatch in the number of origins!")
+        
+    elif(c == TERMINUS):
+      if(termfound):
+        sys.exit("Error: multiple termini found in genome "+Y+".")
+      termfound = True
+      if(term >= 0):
+        retval.append((term,i))
+      else:
+        sys.exit("Error: mismatch in the number of termini!")
+
+  return retval
+
+
+def addLen2Constraints(prob, dupsx, dupsy):
+  """
+  Add constraints forbidding all length 2 cycles.
+  """
+  def pairsTOlist(((toi,toj),(fromi,fromj))):
+    return (toi,toj,fromi,fromj)
+
+  blacklist = []
+  for candidate in combinations(map(pairsTOlist,dupsx),2):
+    pairlist = getCycles(X,candidate,repressgraph=True)
+    if(len(pairlist)):
+      blacklist.append(pairlist[0])
+  for candidate in combinations(map(pairsTOlist,dupsy),2):
+    pairlist = getCycles(Y,candidate,repressgraph=True)
+    if(len(pairlist)):
+      blacklist.append(pairlist[0])
+
+  (new_rows,new_rhs) = buildNewConstraints(blacklist)
+  prob.linear_constraints.add(lin_expr = new_rows,\
+                              senses = ['L']*len(new_rows),\
+                              rhs = new_rhs)
+
+
+
+
+
+def getAnnotatedAlignStr(gx, gy, solution):
+  """
+  Get a string with the verticle alignement where losses and duplication
+  are annotated appropriately.
+  """
+  global NAMELEN
+  matchinds = extractMatches(solution) #Get sorted list of match indices.
+  lossindsx = extractLosses(X,solution)#Get sorted loss indices for X.
+  lossindsy = extractLosses(Y,solution)#Get sorted loss indices for Y.
+  dupindsx = extractDups(X,solution)   #Get sorted duplication indices for X.
+  dupindsy = extractDups(Y,solution)   #Get sorted duplication indices for Y.
+
+  headformat = '{:^'+str(NAMELEN)+'}   {:^'+str(NAMELEN)+'}{}'
+  rowformat = '{:^'+str(NAMELEN)+'}---{:^'+str(NAMELEN)+'}{}'
+  rs = "Detailed Results\n"+\
+       "****************\n"
+  rs += headformat.format('Genome X', 'Genome Y', 'Operation')+'\n'
+  rs += headformat.format('========', '========', '=========')+'\n'
+
+  i = 0
+  j = 0
+  matchinds.append((len(gx)+1,len(gy)+1))#Add a dummy match so that we continue
+                                         #to the end of each genome.
+  for (mi,mj) in matchinds:   #For each match
+    while(i < mi):            #burn characters in X until we reach the match,
+      if(i == len(gx)):       #(if we're done with X then move on)
+        break
+
+      xstr = gx[i]+"_"+str(i+1)
+      ystr = "."
+      operation = ""
+      if(i in lossindsx):
+        operation += "Loss of "+gx[i]+"_"+str(i+1)
+      else:
+        operation += getDupStr(gx,i,dupindsx)
+
+      rs += rowformat.format(xstr, ystr, operation)+'\n'
+      i += 1
+    while(j < mj):            #burn characters in Y until we reach the match,
+      if(j == len(gy)):       #(if we're done with Y then we're done)
+        return rs
+
+      xstr = "."
+      ystr = gy[j]+"_"+str(len(gx)+j+1)
+      operation = ""
+      if(j in lossindsy):
+        operation += "Loss of "+gy[j]+"_"+str(len(gx)+j+1)
+      else:
+        operation += getDupStr(gy,j,dupindsy,len(gx))
+
+      rs += rowformat.format(xstr, ystr, operation)+'\n'
+      j += 1
+    if(i == mi and j == mj):  #and then print the match.
+      rs += rowformat.format(gx[i]+"_"+str(i+1),\
+                             gy[j]+"_"+str(len(gx)+j+1), '')+"\n"
+      i += 1
+      j += 1
+
+  assert(False)
+  return False                #We should never get here.
+
+
+
+
+def getDupStr(genome, index, dups, offset=0):
+  """
+  Return the appropriate string for a duplication in the verticle output of
+  an alignment.
+  The offset argument is because the genes in the Y genome are indexed starting
+  from the largest gene index in X.
+  """
+  retstr = ''
+  for dup in dups:
+    if(index == dup[0]):   #If we're the first index of the dup then output.
+      if(genome[dup[0]] != genome[dup[2]]):
+        retstr += "Inverted "
+      if((abs(dup[0] - dup[3]) == 1) or (abs(dup[1] - dup[2]) == 1)):
+        retstr += "Tandem "
+      retstr += "Duplication of "+genome[dup[0]]+"_"+str(dup[0]+1+offset)+\
+                " to "+genome[dup[1]]+"_"+str(dup[1]+1+offset)+\
+                " copied from "+genome[dup[2]]+"_"+str(dup[2]+1+offset)+" to "+\
+                genome[dup[3]]+"_"+str(dup[3]+1+offset)
+
+  return retstr
+
+
+
+def getAncestorStr(gx, gy, solution, delimiter="", gapchar="-"):
+  """
+  Given a solution, get a string representing the ancestor.
+  """
+  return delimiter.join(getAncestor(gx,gy,solution,gapchar))
+
+
+def getAncestor(gx, gy, solution, gapchar):
+  """
+  Given a solution, get a string representing the ancestor.
+  """
+  ancestor = []
+  matchinds = extractMatches(solution) #Get sorted list of match indices.
+  lossindsx = extractLosses(X,solution)#Get sorted loss indices for X.
+  lossindsy = extractLosses(Y,solution)#Get sorted loss indices for Y.
+
+  i = 0
+  j = 0
+  matchinds.append((len(gx)+1,len(gy)+1))#Add a dummy match so that we continue
+                                         #to the end of each genome.
+  for (mi,mj) in matchinds:   #For each match
+    while(i < mi):            #burn characters in X until we reach the match,
+      if(i == len(gx)):       #(if we're done with X then move on)
+        break
+
+      if(i in lossindsx):
+        ancestor.append(gx[i])
+      else:
+        if(gapchar):
+          ancestor.append(gapchar)
+
+      i += 1
+    while(j < mj):            #burn characters in Y until we reach the match,
+      if(j == len(gy)):       #(if we're done with Y then we're done)
+        return ancestor
+
+      if(j in lossindsy):
+        ancestor.append(gy[j])
+      else:
+        if(gapchar):
+          ancestor.append(gapchar)
+
+      j += 1
+    if(i == mi and j == mj):  #and then print the match.
+      ancestor.append(gx[i])
+      i += 1
+      j += 1
+
+  assert(False)
+  return False                #We should never get here.
+
+  return ancestor
+
+
+def getAlignStr(gx, gy, solution):
+  """
+  Given a solution, get a string representing the alignment.
+  """
+  header = "Results Summary\n***************\n"
+  matchinds = extractMatches(solution) #Get sorted list of match indices.
+
+  xs = ""    #The string for genome X.
+  ys = ""    #The string for genome Y.
+  if(input_str):
+    pass
+  else:
+    matchinds.append((len(gx)+1,len(gy)+1))#Add dummy match so that we continue
+                                           #to the end of each genome.
+    i = 0
+    j = 0
+    for (mi,mj) in matchinds:   #For each match
+      while(i < mi):            #burn characters in X until we reach the match,
+        if(i == len(gx)):       #(if we're done with X then move on)
+          break
+        xs += gx[i]
+        ys += "-"
+        i += 1
+      while(j < mj):            #burn characters in Y until we reach the match,
+        if(j == len(gy)):       #(if we're done with Y then we're done)
+          return header+"Genome "+X+": "+xs+"\nGenome "+Y+": "+ys
+        xs += "-"
+        ys += gy[j]
+        j += 1
+      if(i == mi and j == mj):  #and then print the match.
+        xs += gx[i]
+        ys += gy[j]
+        i += 1
+        j += 1
+
+  assert(False)                 #We should never get here.
+  return False
+
+
+def extractLosses(gid, variables):
+  """
+  Return a sorted list of the indices of the loss variables.
+  """
+  losses = filter(lambda x: x[0:1+len(gid)] == "L"+gid, variables)
+  lossinds = map(getLoss, losses) #Extract genome id and index of the loss
+  lossinds.sort()                 #and sort them.
+  return lossinds
+
+
+def extractDups(gid, variables):
+  """
+  Return a sorted list of the indices of the duplication variables.
+  """
+  dups = filter(lambda x: x[0:1+len(gid)] == "D"+gid, variables)
+  dupinds = map(getDup, dups) #Extract genome id and indices of the dups
+  dupinds.sort()              #and sort them.
+  return dupinds
+
+
+
+def extractMatches(variables):
+  """
+  Return a sorted list of the indices of the matche variables.
+  """
+  matches = filter(lambda x: (x[0] == 'M') or (x[0] == 'N'), variables)
+  matchinds = map(getMatch, matches)  #Extract the indices of the matches
+  matchinds.sort()                    #and sort them.
+  return matchinds
+
+
+def buildNewConstraints(cycles):
+  """
+  Build the necessary lists to add constraints for the given list of cycles.
+  """
+  rows = []
+  rhs = []
+  for c in cycles:
+    rows.append([c,[1]*len(c)])
+    rhs.append(len(c)-1)
+  return (rows,rhs)
+
+
+def getLPstr(p,removespecialchars=False):
+  """
+  Print the ILP.
+  """
+  variables = p.variables.get_names()
+  coefficients = map(str, p.objective.get_linear())
+  terms = map("*".join,zip(coefficients,variables))
+
+  retstring = "Linear Programming Objective Function & Constraints\n"+\
+              "***************************************************\n"+\
+              "minimize: "
+  retstring += " + ".join(terms) + "\n\ns.t.:\n"
+
+  senses = p.linear_constraints.get_senses()
+  rhs = p.linear_constraints.get_rhs()
+  i=0
+  for row in p.linear_constraints.get_rows():
+    retstring += " + ".join(p.variables.get_names(row.ind))+" "+\
+                 translate(senses[i])+" "+str(rhs[i])+"\n"
+    i += 1
+
+  if(removespecialchars):
+    retstring = retstring.replace('[','');
+    retstring = retstring.replace(']','');
+    retstring = retstring.replace('-','');
+
+  return retstring
+
+
+def translate(sense):
+  """
+  Translate the CLEX sense id into a readable format.
+  """
+  if(sense == 'E'):
+    return '='
+  if(sense == 'L'):
+    return '<='
+  if(sense == 'G'):
+    return '>='
+
+  return sense
+
+
+def getCyclesFromVars(genomeid, truevars):
+  """
+  A wrapper for getCycles where the input is variables instead of intervals.
+  """
+       #Get dup vars with the correct id.
+  dupvars = getDupVars(genomeid, truevars)
+       #Extract indices (i,j, k,l) for dup from [k,l] to [i,j].
+  dups = map(getDup, dupvars)
+
+  return getCycles(genomeid, dups)
+
+
+
+def getCycles(genomeid, dups, repressgraph=False):
+  """
+  Return a list of all the duplication cycles in the given genome with the
+  given set of true variables.
+  Do this by finding cycles in the graph where dups are nodes and dup
+  A has an arc to dup B iff the product of A overlaps the product of B.
+
+   ** it gets EVERY (potentially exponentially many) cycle in the graph.
+
+  If repressgraph is True, then override the -g flag and don't print the graph.
+  """
+       #Build the graph of duplications:
+  gr = nx.DiGraph()
+
+  for (d1,d2) in combinations(dups,2):
+    if(overlaps((d1[0],d1[1]),(d2[2],d2[3]))): #If the product of d1 overlaps
+      gr.add_edge(d1,d2)                       #with the origin of d2.
+    if(overlaps((d2[0],d2[1]),(d1[2],d1[3]))): #If the product of d2 overlaps
+      gr.add_edge(d2,d1)                       #with the origin of d1.
+
+  if((not repressgraph) and show_dupgraph):
+    nx.draw_graphviz(gr)
+    plt.show()
+
+       #Build the sets of variables corresponding to cycles:
+  cycles = nx.simple_cycles(gr)
+  cyclevarset = list()  #The list of cycles.  Each cycle is a set of dup vars.
+  for c in cycles:
+    duplist = map(dupVarL,zip([genomeid]*len(c),c))
+    del duplist[-1]
+    cyclevarset.append(duplist)
+  
+  return cyclevarset
+
+
+
+def overlaps(i1, i2):
+  """
+  Return True if the two intervals overlap.
+  """
+  return ((i1[0] >= i2[0] and i1[0] <= i2[1]) or  #If either of the endpoints
+          (i1[1] >= i2[0] and i1[1] <= i2[1]) or  #of i1 are within i2 or if an
+          (i2[0] >= i1[0] and i2[0] <= i1[1]))    #endpoint of i2 is within i1.
+
+
+#def getCyclesOLD(genomeid, truevars):
+#  """
+#  Return a list of all the duplication cycles in the given genome with the
+#  given set of true variables.
+#   ** it gets EVERY cycle in the graph and then removes the duplicates.
+#  """
+#       #Get dup vars with the correct id.
+#  dupvars = getDupVars(genomeid, truevars)
+#       #Extract indices (i,j, k,l) for dup from [k,l] to [i,j].
+#  dups = map(getDup, dupvars)
+#
+#       #Build the graph of duplications:
+#  gr = nx.DiGraph()
+#                      #Create a set of edges for each duplication. Each index
+#  for dup in dups:    #from the origin will link to each from the product:
+#    dupedges = list(product(range(dup[2],dup[3]+1),range(dup[0],dup[1]+1)))
+#                      #Create all edges labeled by the duplication index list.
+#    gr.add_edges_from(dupedges, dupname=str(dup))
+#
+#  if(show_dupgraph):
+#    nx.draw_graphviz(gr)
+#    plt.show()
+#
+#       #Build the sets of variables corresponding to cycles:
+#  cycles = nx.simple_cycles(gr)
+#  cyclevarset = list()  #The list of cycles.  Each cycle is a set of dup vars.
+#  for c in cycles:
+#    cyclevarset.append(getDupsForCycle(gr, c, dups, genomeid))
+#  cyclevarset = removeDups(cyclevarset)
+#
+#  return cyclevarset
+#
+#
+#
+#def removeDups(seq): 
+#  """
+#  Code I found on: http://www.peterbe.com/plog/uniqifiers-benchmark
+#  Remove duplicate entries in list -seq-.
+#  """
+#  seen = {}
+#  result = []
+#  for item in seq:
+#    marker = str(item)
+#    if marker in seen: continue
+#    seen[marker] = 1
+#    result.append(item)
+#  return result
+
+
+
+
+def getDupsForCycle(gr, cycle, dups, gid):
+  """
+  From the given set of duplications, take only those dups that contributed
+  to the given cycle.
+  This is made easy by the edge labels.
+  Return the set of dup variable names corresponding to the cycle using
+  the genome id -gid-.
+  """
+  dupset = set()
+  for i in xrange(len(cycle)-1):
+    duplist = strToList(gr[cycle[i]][cycle[i+1]]["dupname"])
+    dupset.add(dupVar(gid, (duplist[0],duplist[1]), (duplist[2],duplist[3])))
+
+  return list(dupset)
+
+
+def strToList(s):
+  """
+  Produce a list from a string of the form "(e1, e2, ..., eN)"
+  """
+  s = s.lstrip(' (')
+  s = s.rstrip(' )')
+  return s.split(", ")
+
+
+def getDupVars(gid, variables):
+  """
+  Return the duplication variable corresponding to the given genome id.
+  """
+  retval = []
+  for v in variables:
+    if(isDup(gid,v)):
+      retval.append(v)
+  return retval
+  #duppairs = filter(isDup, zip([gid]*len(variables),variables))
+  #(idlist,dups) = zip(*duppairs)
+  #return list(dups)
+
+
+
+
+def getEqnNames(gx, gy, conflicting):
+  """
+  Construct the names of the equations (probably not necessary).
+  An equation for covering a gene is given by the genes and its positition.
+  An equation for the order constraints is given by the two matches.
+  """
+  rownames = []
+  for i in xrange(len(gx)):
+    rownames.append(X+str(i)+"_"+gx[i])
+  for i in xrange(len(gy)):
+    rownames.append(Y+str(i)+"_"+gy[i])
+  for (m1,m2) in conflicting:
+    rownames.append("c["+str(m1[0])+"-"+str(m1[1])+"]["+\
+                         str(m2[0])+"-"+str(m2[1])+"]")
+  return rownames
+
+
+
+
+
+
+def getAllVariables(gx, gy, matches, dupsx, dupsy):
+  """
+  Return a list of all the variable names.
+  The order is LXnames+LYnames+Mnames+DXnames+DYnames
+  """
+          #First find the names of all the variables:
+  LXnames = list()             #Innitialize the loss variable names:
+  LYnames = list()
+  for i in xrange(len(gx)):
+    LXnames.append(lossVar(X,i))
+  for i in xrange(len(gy)):
+    LYnames.append(lossVar(Y,i))
+
+  Mnames = list()              #Innitialize the match variable names:
+  for (i1,i2) in matches:
+    Mnames.append(matchVar(i1,i2))
+
+  DXnames = list()             #Innitialize the duplication variable names:
+  DYnames = list()
+  for dup in dupsx:
+    DXnames.append(dupVar(X,dup[0],dup[1]))
+  for dup in dupsy:
+    DYnames.append(dupVar(Y,dup[0],dup[1]))
+
+
+     #The full list of variable names:
+  return (LXnames+LYnames+Mnames+DXnames+DYnames, len(LXnames), len(LYnames),\
+          len(Mnames), len(DXnames), len(DYnames))
+
+
+
+
+def lowSlack(p):
+  """
+  Given the CPLEX problem, return False if any of the slack values are
+  above tolerance (i.e. farther from 0 or 1 than SLACK_TOLERANCE).
+  """
+  slack = p.solution.get_linear_slacks()
+  for j in range(p.linear_constraints.get_num()):
+    if(slack[j] < (1-SLACK_TOLERANCE) and slack[j] > SLACK_TOLERANCE):
+      return False
+  return True
+
+
+def getRowVars(genomeid,i,matches,dups):
+  """
+  Return the array corresponding to the variables in 
+  """
+  global Y
+
+  gindex = 0
+  if(genomeid == Y):
+    gindex = 1
+  variables = [lossVar(genomeid,i)]                 #Get the loss variable.
+
+  for m in getPertinentMatches(matches,i,gindex): #Add the match variables:
+    variables.append(matchVar(m[0],m[1]))
+                                     
+  for d in getPertinentDups(dups,i):              #Add the dup variables:
+    variables.append(dupVar(genomeid,d[0],d[1]))
+
+  return variables
+
+
+
+
+def getPertinentMatches(matches, index, genome):
+  """
+  Return the matches that cover index -index- in genome -genome-.
+  """
+  p = list()
+  for m in matches:
+    if(m[genome] == index):
+      p.append(m)
+  return p
+
+
+def getPertinentDups(dups, index):
+  """
+  Return the dups that cover index -index-.
+  The form of a dup is: ((i,j),(k,l)) where the first pair is the product
+  and the second is the source.
+  """
+  p = list()
+  for d in dups:
+    if(d[0][0] <= index and d[0][1] >= index): 
+      p.append(d)
+  return p
+
+
+
+
+
+
+def getConflictingMatches(matches):
+  """
+  Get a list of the conflicting matches.
+  """
+  conflicts = list()
+  for (m1,m2) in product(matches,matches):
+    if((m1 != m2) and cross(m1,m2)):     #If two distinct matches cross then
+      conflicts.append((m1,m2))          #save the matches.
+  return conflicts
+
+
+
+def cross(m1,m2):
+  """
+  Return True if the matches cross.
+  """
+  return (m1[0] <= m2[0] and m2[1] <= m1[1]) or\
+         (m2[0] <= m1[0] and m1[1] <= m2[1])
+
+
+'''
+def getFirstLineFromFile(filename):
+  """
+  Return the first line in the file.
+  """
+  try:
+    f = open(filename, 'r')
+  except IOError as e:
+    sys.exit("Error opening file "+filename+': '+e)
+  line = f.readline()
+  f.close()
+  return line
+'''
+
+def getSecondLineFromFile(filename):
+  """
+  Return the second line in the file.  OLIMOD
+  """
+  try:
+    f = open(filename, 'r')
+  except IOError as e:
+    sys.exit("Error opening file "+filename+': '+e)
+  f.readline()
+  line = f.readline()
+  f.close()
+  return line
+
+
+#______________________________________________________________________________#
+#|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|#
+#|:=--=:|     Main    |:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|:=--=:|#
+
+#Preliminaries: __    __    __    __    __    __    __    __    __    __    __
+#__/  \__/  \__/  \__/  \__/  \__/  \__/  \__/  \__/  \__/  \__/  \__/  \__/  \_
+
+usage = "usage: duploss -eirfqdtvhg genome1 genome2\n"+\
+        " -e enforce the match of the terminus and origin.\n"\
+        " -i consider (signed) inverted duplications.\n"\
+        " -r rotate the genomes to put the origin at the beginning.\n"\
+        " -f genome1 and genome2 are filenames instead of genome strings.\n"\
+        " -q gene names are strings (delimeted by ',' or ';').\n"\
+        " -d show detailed results.\n"\
+        " -t show running time.\n"\
+        " -v be verbose.\n"\
+        " -g show the graph corresponding to the duplications.\n"\
+        " -h print this message.\n"\
+        "\nExample: duploss -dtv zxyzxyaxbwaxb zxyxwbz\n"
+
+
+
+try:
+  opts, args = getopt.getopt(sys.argv[1:], "reifqdtvhg")
+except getopt.GetoptError:
+  sys.exit(usage)
+
+for (opt,val) in opts:
+  if(opt == "-h"):
+    sys.exit(usage)
+  if(opt == "-f"):
+    input_files = True
+  if(opt == "-q"):
+    input_str = True
+  if(opt == "-d"):
+    show_details = True
+  if(opt == "-t"):
+    show_runtimes = True
+  if(opt == "-v"):
+    be_verbose = True
+  if(opt == "-g"):
+    show_dupgraph = True
+  if(opt == "-e"):
+    enforce_ot_match = True
+  if(opt == "-i"):
+    inverted_dups = True
+  if(opt == "-r"):
+    rotate_genomes = True
+
+
+if(len(args) != 2):
+  sys.exit(usage)
+
+file1 = ''
+file2 = ''
+if(input_files):
+  file1 = args[0]
+  file2 = args[1]
+  if(not os.path.exists(file1)):
+    sys.exit("Error: "+file1+" does not exist.\n")
+  if(not os.path.exists(file2)):
+    sys.exit("Error: "+file2+" does not exist.\n")
+
+#MAIN:    __    __    __    __    __    __    __    __    __    __    __    __
+#__/  \__/  \__/  \__/  \__/  \__/  \__/  \__/  \__/  \__/  \__/  \__/  \__/  \_
+
+
+gx = []   #Genome 1.
+genome1 = ''
+genome2 = ''
+gy = []   #Genome 2.
+if(input_files):
+  genome1 = getSecondLineFromFile(file1)  ##OLIMOD
+  genome2 = getSecondLineFromFile(file2)  ##OLIMOD
+else:
+  genome1 = args[0]
+  genome2 = args[1]
+
+(gx,gy) = parseGenomes(genome1, genome2)
+
+print X+":"+",".join(gx)
+print Y+":"+",".join(gy)
+sys.stdout.flush()
+
+dupsx = getDups(gx)
+dupsy = getDups(gy)
+matches = getMatches(gx,gy)
+
+print '------------------------'
+sys.stdout.flush()
+runLP(gx, gy, matches, dupsx, dupsy)
