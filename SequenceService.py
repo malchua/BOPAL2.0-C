@@ -56,39 +56,45 @@ def updateGlobalSubstitutionCounter(strain):
 # Parameters: strain
 # Description: Increments the global size distributions for inversions
 ######################################################
-def updateGlobalInversionSizeDistributionCounter(strain):
+def updateGlobalInversionSizeDistributionCounter(strain, multiPass = False):
     if len(strain.inversionCounts) > 0:
         for size, count in strain.inversionCounts.items():
             if size in globals.inversionSizeDistributionCounter:
                 globals.inversionSizeDistributionCounter[size] += count
             else:
                 globals.inversionSizeDistributionCounter[size] = count
+            if multiPass:
+                globals.inversionCounter += count
                 
 ######################################################
 # updateGlobalTranspositionSizeDistributionCounter
 # Parameters: strain
 # Description: Increments the global size distributions for transpositions
 ######################################################
-def updateGlobalTranspositionSizeDistributionCounter(strain):
+def updateGlobalTranspositionSizeDistributionCounter(strain, multiPass = False):
     if len(strain.transpositionCounts) > 0:
         for size, count in strain.transpositionCounts.items():
             if size in globals.transpositionSizeDistributionCounter:
                 globals.transpositionSizeDistributionCounter[size] += count
             else:
                 globals.transpositionSizeDistributionCounter[size] = count
+            if multiPass:
+                globals.transposedCounter += count
 
 ######################################################
 # updateGlobalInvertedTranspositionSizeDistributionCounter
 # Parameters: strain
 # Description: Increments the global size distributions for inverted transpositions
 ######################################################
-def updateGlobalInvertedTranspositionSizeDistributionCounter(strain):
+def updateGlobalInvertedTranspositionSizeDistributionCounter(strain, multiPass = False):
     if len(strain.invertedTranspositionCounts) > 0:
         for size, count in strain.invertedTranspositionCounts.items():
             if size in globals.invertedTranspositionSizeDistributionCounter:
                 globals.invertedTranspositionSizeDistributionCounter[size] += count
             else:
                 globals.invertedTranspositionSizeDistributionCounter[size] = count
+            if multiPass:
+                globals.invertedTransposedCounter += count
 
 ######################################################
 # updateGlobalDeletionCounter

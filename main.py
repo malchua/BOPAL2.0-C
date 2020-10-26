@@ -51,6 +51,11 @@ def createAncestor(strain1, strain2, neighborStrain):
     ancestralName = 'Ancestor ' + str(globals.ancestralCounter)
     ancestralFragments = None
 
+    # print strain1.name
+    # print strain2.name
+    # if neighborStrain != None:
+    #     print neighborStrain.name
+
     strain1Copy = copy.deepcopy(strain1) #Do a deep copy of object for when we compare to the neighbor
     neighborCopy = copy.deepcopy(neighborStrain) #Do a deep copy of the neighbor as well b/c we don't want to store those comparisons in the strain either
 
@@ -62,6 +67,10 @@ def createAncestor(strain1, strain2, neighborStrain):
         globals.enableDeletionReversions = True #Only do the backtrace between these two strains!
         globals.enableSelfAlignmentDetails = True
 
+        if secondPass:
+            strain1.resetStrain()
+            strain2.resetStrain()
+
         events, duplicatesStrain1, duplicatesStrain2 = constructEvents(strain1, strain2)
 
         globals.enableSelfAlignmentDetails = False
@@ -69,6 +78,9 @@ def createAncestor(strain1, strain2, neighborStrain):
     else:
         if globals.printToConsole:
             print('Now performing a series of alignments between the nighboring strains: %s, %s' % (strain1Copy.name, neighborCopy.name))
+        if secondPass:
+            strain1Copy.resetStrain()
+            neighborCopy.resetStrain()
         neighborEvents, duplicatesStrain1Copy, duplicatesStrainNeighbor = constructEvents(strain1Copy, neighborCopy)
         
         if globals.printToConsole:
@@ -82,6 +94,14 @@ def createAncestor(strain1, strain2, neighborStrain):
 
         globals.enableDeletionReversions = True #Only do the backtrace between these two strains!
         globals.enableSelfAlignmentDetails = True
+
+        # print secondPass
+        if secondPass:
+            # print "Second pass"
+            # strain1SecondPassCopy = copy.deepcopy(strain1)
+            # strain2SecondPassCopy = copy.deepcopy(strain2)
+            strain1.resetStrain()
+            strain2.resetStrain()
 
         events, duplicatesStrain1, duplicatesStrain2 = constructEvents(strain1, strain2, neighborEvents)
 
@@ -108,10 +128,10 @@ def createAncestor(strain1, strain2, neighborStrain):
 
     #Compare one of the siblings to the neighbor if one exists
     if neighborCopy != None:
-        print "using neighbour"
+        # print "using neighbour"
         ancestralFragments, strain1, strain2 = determineAncestralFragmentArrangementUsingNeighbor(FCR, TR, IR, ITR, lostPoints, NFCR, NTR, NIR, NITR, neighborLostPoints, strain1, strain2)
     else:
-        print "not using neighbour"
+        # print "not using neighbour"
         if neighborCopy == None:
             if globals.printToConsole:
                 print('No neighbor found!')
@@ -169,6 +189,11 @@ def createAncestor(strain1, strain2, neighborStrain):
 
         subsList1 = filter(None, line1.split(';')) #Ensures we don't have a list with an empty string as an element
         subsList2 = filter(None, line2.split(';'))
+
+        # print line1
+        # print line2
+        # print subsList1
+        # print subsList2
 
         #For each substitution in the list
         for w in range(0, len(subsList1)):
@@ -228,6 +253,11 @@ def createAncestor(strain1, strain2, neighborStrain):
         subsList1 = filter(None, line1.split(';')) #Ensures we don't have a list with an empty string as an element
         subsList2 = filter(None, line2.split(';'))
 
+        # print line1
+        # print line2
+        # print subsList1
+        # print subsList2
+
         #For each substitution in the list
         for w in range(0, len(subsList1)):
             gene1, idNumber1, position1 = parseDetails(subsList1[w])
@@ -240,6 +270,8 @@ def createAncestor(strain1, strain2, neighborStrain):
                 if '@' in strain1Copy.substitutionDetails:
                     line3 = strain1Copy.substitutionDetails.replace('Substitution:', '').strip()
                     subsList3 = filter(None, line3.split(';'))
+                    # print line3
+                    # print subsList3
                     for v in range(0, len(subsList3)):
                         gene3, idNumber3, position3 = parseDetails(subsList3[v])
                         if gene1 == gene3 and position1 == position3:
@@ -481,11 +513,74 @@ def computeLineageCost(node, targetName, lineageCost):
     return None
 
 ######################################################
+# resetCounters
+# Parameters: None
+# Description: Resets all global event counters for the multiple pass feature
+######################################################
+def resetCounters():
+    globals.inversionCounter = 0
+    globals.transposedCounter = 0
+    globals.codonMismatchCounter = 0
+    globals.substitutionCounter = 0
+    globals.invertedTransposedCounter = 0
+
+    globals.deletionSizeCounter = {}
+    globals.duplicationSizeCounter = {}
+    globals.inversionSizeDistributionCounter = {}
+    globals.transpositionSizeDistributionCounter = {}
+    globals.invertedTranspositionSizeDistributionCounter = {}
+
+######################################################
+# traverseNewickTreeAndOutputToFile2
+# Parameters: node - Strain being currently processed
+# Description: Traverses a provided newick tree in post order traversal to output the appropriate details to the output file
+######################################################
+def traverseNewickTreeAndOutputToFile2(node):
+    if len(node.clades) > 0:
+        traverseNewickTreeAndOutputToFile2(node.clades[0])
+        if len(node.clades) > 1:
+            traverseNewickTreeAndOutputToFile2(node.clades[1])
+    if node.name != None and len(node.name) > 0:
+        filteredList = iter(filter(lambda x: x.name == node.name, strains))
+        foundStrain = next(filteredList, None)
+        if foundStrain != None:
+            updateCounters(foundStrain)
+            outputStrainDetailsToFile(outputFileName, foundStrain)
+            outputGenomeToFile(node.name + ".txt", foundStrain)
+
+######################################################
+# updateCounters
+# Parameters: Bacterial strain
+# Description: Updates global event counters based on the events of the given strain
+######################################################
+def updateCounters(strain):
+    multiPass = True
+    #Computes the total number of inversions, transpositions, inverted transpositions
+    # globals.inversionCounter += len(IR)
+    # globals.transposedCounter += len(TR)
+    # globals.invertedTransposedCounter += len(ITR)
+
+    #Increments the counters for the size distributions for each event type
+    updateGlobalDeletionCounter(strain)
+    updateGlobalDuplicationCounter(strain)
+    updateGlobalInversionSizeDistributionCounter(strain, multiPass)
+    updateGlobalTranspositionSizeDistributionCounter(strain, multiPass)
+    updateGlobalInvertedTranspositionSizeDistributionCounter(strain, multiPass)
+
+    #Increment counters (only need to do the count only once otherwise it leads to double counts ie x2 number of events)
+    #updateGlobalCodonMismatchCounter(strain1)
+    updateGlobalCodonMismatchCounter(strain)
+    #updateGlobalSubstitutionCounter(strain1)
+    updateGlobalSubstitutionCounter(strain)
+
+######################################################
 # traverseNewickTreeAndOutputToFile
 # Parameters: node - Strain being currently processed
 # Description: Traverses a provided newick tree in post order traversal to output the appropriate details to the output file
 ######################################################
 def traverseNewickTreeAndOutputToFile(node):
+    # print "Traversing tree for output: "
+
     if len(node.clades) > 0:
         traverseNewickTreeAndOutputToFile(node.clades[0])
         if len(node.clades) > 1:
@@ -494,6 +589,7 @@ def traverseNewickTreeAndOutputToFile(node):
         filteredList = iter(filter(lambda x: x.name == node.name, strains))
         foundStrain = next(filteredList, None)
         if foundStrain != None:
+            # print node.name
             outputStrainDetailsToFile(outputFileName, foundStrain)
             outputGenomeToFile(node.name + ".txt", foundStrain)
 
@@ -508,6 +604,9 @@ def traverseNewickTree(node, parentNode):
     leftSibling = None
     rightSibling = None
 
+    # if secondPass:
+    #     print "Node name: " + node.name
+
     #Check there's any descendants
     if len(node.clades) > 0:
         leftSibling = traverseNewickTree(node.clades[0], node)
@@ -520,31 +619,43 @@ def traverseNewickTree(node, parentNode):
         filteredList = iter(filter(lambda x: x.name == node.name, strains))
         foundStrain = next(filteredList, None)
 
-        if (foundStrain != None):
-            if globals.printToConsole:
-                print('Retrieving strain from strains list: %s' % (foundStrain.name))
-            return foundStrain
-        else:
-            newStrain = createStrainFromFile(node)
-            if newStrain != None:
+        if not secondPass:
+            if (foundStrain != None):
                 if globals.printToConsole:
-                    print('Successfully created the following strain from data file: %s' % (newStrain.name))
-                strains.append(newStrain)
-                return newStrain
+                    print('Retrieving strain from strains list: %s' % (foundStrain.name))
+                return foundStrain
+            else:
+                newStrain = createStrainFromFile(node)
+                if newStrain != None:
+                    if globals.printToConsole:
+                        print('Successfully created the following strain from data file: %s' % (newStrain.name))
+                    strains.append(newStrain)
+                    return newStrain
+        else:
+            if not('Ancestor' in node.name):
+                return foundStrain
 
+    # print leftSibling
+    # print rightSibling
     #Case 1: Both siblings exist therefore we need to construct their ancestor
     if leftSibling != None and rightSibling != None and leftSibling.genomeFragments != None and len(leftSibling.genomeFragments) > 0 and rightSibling.genomeFragments != None and len(rightSibling.genomeFragments) > 0:
+        # print "Case 1"
         if globals.printToConsole:
             print('The following siblings will be compared, %s, %s...' % (leftSibling.name, rightSibling.name))
 
         neighborStrain = None #Neighbor strain
         if parentNode != None:
+            originalName = node.name
             node.name = 'Processing' #Helps determine whether we go left or right to get the neighbor
             if len(parentNode.clades) > 0 and parentNode.clades[0].name != 'Processing':
                 neighborStrain = getNeighborStrain(parentNode.clades[0])
             elif len(parentNode.clades) > 1 and parentNode.clades[1].name != 'Processing':
                 neighborStrain = getNeighborStrain(parentNode.clades[1])
-            node.name = None #Put the name back the way it was so we don't mess up anything
+
+            if not secondPass:
+                node.name = None #Put the name back the way it was so we don't mess up anything
+            else:
+                node.name = originalName
 
         if neighborStrain != None:
             if globals.printToConsole:
@@ -554,18 +665,28 @@ def traverseNewickTree(node, parentNode):
                 print('No neighbor found!')
 
         ancestor = createAncestor(leftSibling, rightSibling, neighborStrain)
-        node.name = ancestor.name
-        strains.append(ancestor)
+        if not secondPass:
+            node.name = ancestor.name
+            strains.append(ancestor)
+        else:
+            ancestor.name = node.name
+            filteredList = iter(filter(lambda x: x.name == node.name, strains))
+            foundStrain = next(filteredList, None)
+            strains.remove(foundStrain)
+            strains.append(ancestor)
 
         return ancestor
     #Case 2: Only the left sibling exists so return it
     elif leftSibling != None and leftSibling.genomeFragments != None and len(leftSibling.genomeFragments) > 0:
+        # print "Case 2"
         return leftSibling
     #Case 3: Only the right sibling exists so return it
     elif rightSibling != None and rightSibling.genomeFragments != None and len(rightSibling.genomeFragments) > 0:
+        # print "Case 3"
         return rightSibling
     #Case 4: None of the siblings exist so return NULL
     else:
+        # print "Case 4"
         return None
 
 ######################################################
@@ -577,6 +698,9 @@ def main():
     global newickFileName
     global outputFileName
     global testFileName
+    global secondPass
+
+    secondPass = False
     
     if len(sys.argv) != 3:
         print "WARNING: Must provide a Newick tree and test folder name. Exiting..."
@@ -589,7 +713,7 @@ def main():
         outputFileName = sys.argv[2] + "/ApplicationOutput.txt"
     testFileName = sys.argv[2] + '/'
     
-    print('Starting application...BOPAL2.0')
+    print('Starting application...BOPAL2.0(MP)')
     startTime = time.time()
     
     if globals.printToConsole:
@@ -606,14 +730,21 @@ def main():
     if globals.printToConsole:
         print('Traversing newick tree...')
     result = traverseNewickTree(newickTree.clade, None)
-    
+
+    secondPass = True
+    # outputFileName = sys.argv[2] + "/ApplicationOutput2.txt"
+    # createFile(outputFileName, newickTree)
+    resetCounters()
+
+    result = traverseNewickTree(newickTree.clade, None)
+
     endTime = time.time()
     totalTime = endTime - startTime
     
     #Output ancestral genome to console
     if globals.printToConsole:
         print('This is the root ancestral genome!')
-        
+
     root = newickTree.clade
     rootGenome = []
     if newickFileName == "tree2LeafNeighbour.dnd":
@@ -645,15 +776,15 @@ def main():
                     
         with open(testFileName + "appRoot.txt", "w+") as f:
             f.write(rootGenome)
-    
+
     if globals.printToConsole:
         #Output newick tree after the ancestors have been added to it
         Phylo.draw(newickTree)
-    
+
     #Need to traverse tree to ouput appropriate content to file
     newickTree.clade.name = '' #Make sure that the output for the root is not output
     traverseNewickTreeAndOutputToFile(newickTree.clade)
-        
+
     #Output the totals for the computation to console and file
     outputTotalsToFile(outputFileName, totalTime)
     

@@ -8,6 +8,7 @@ class BacterialStrain(object):
     def __init__(self, name, genomeFragments):
         self.name = name
         self.genomeFragments = genomeFragments
+        self.multiPassed = False
 
         self.codonMismatchDetails = 'Codon Mismatch:'
         self.substitutionDetails = 'Substitution:'
@@ -35,3 +36,27 @@ class BacterialStrain(object):
 
     def addSubstitutionDetails(self, substitutionDetails):
         self.substitutionDetails += substitutionDetails
+
+    def resetStrain(self):
+        self.multiPassed = True
+
+        self.codonMismatchDetails = 'Codon Mismatch:'
+        self.substitutionDetails = 'Substitution:'
+
+        self.duplicationCounts = {}
+        self.duplicationDetails = 'Duplication:'
+
+        self.deletionCounts = {}
+        self.deletionDetails = 'Deletion:'
+
+        self.inversionCounts = {}
+        self.inversionDetails= 'Inversion:'
+
+        self.transpositionCounts = {}
+        self.transpositionDetails = 'Transposition:'
+
+        self.invertedTranspositionCounts = {}
+        self.invertedTranspositionDetails = 'Inverted Transposition:'
+        
+        self.tempCodonDetails = ''
+        self.tempSubstitutionDetails = ''

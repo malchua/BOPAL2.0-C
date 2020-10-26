@@ -83,7 +83,7 @@ def performMultiSequenceAlignment(operon1, operon2, operon3, event):
             scoreMatrix[0][b][c], dirMatrix[0][b][c] = findMax(scoreMatrix, 0, b, c, operon1, operon2, operon3)
 
     # Perform the multiple sequence alignment
-    print ""
+    # print ""
     for a in range(1, len(operon1)+1):
         for b in range(1, len(operon2)+1):
             for c in range(1, len(operon3)+1):
@@ -102,10 +102,10 @@ def performMultiSequenceAlignment(operon1, operon2, operon3, event):
         print dirMatrix
         print ""
 
-    print operon1
-    print operon2
-    print operon3
-    print ""
+    # print operon1
+    # print operon2
+    # print operon3
+    # print ""
 
     # Compute the number of events that occured between the operons
     event = traceback(scoreMatrix, dirMatrix, operon1, operon2, operon3, event)
@@ -267,7 +267,7 @@ def traceback(matrix, dirMatrix, operon1, operon2, operon3, event):
     selfDuplication = '' #Used only for self global alignment
     # selfPosition = event.fragmentDetails1.startPositionInGenome
 
-    while i > 0 or j > 0 and k > 0:
+    while i > 0 or j > 0 or k > 0:
         # Case 1: Perfect match
         if i > 0 and j > 0 and (dirMatrix[i][j][k] == 1 or dirMatrix[i][j][k] == 2) and operon1[i-1] == operon2[j-1]:
             # Self global alignment

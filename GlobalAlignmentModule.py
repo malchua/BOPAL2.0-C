@@ -577,10 +577,8 @@ def scanGlobalAlignmentMatrixForOrthologs(globalAlignmentMatrix, eventMatrix, co
 
                 msaScore, msaEvent = findOrthologsByMultiSequenceAlignment(msaEvent.fragmentDetails1, msaEvent.fragmentDetails2, msaEvent, neighborEvents)
                 if msaScore != -1:
-                    print "MSA event score " + str(msaScore)
-                    print "Best event score " + str(bestEvent.score)
-
-                if msaScore > score:
+                    # print "MSA event score " + str(msaScore)
+                    # print "Best event score " + str(bestEvent.score)
                     event = msaEvent
                     event.setScore(msaScore)
             
