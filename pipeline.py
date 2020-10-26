@@ -112,6 +112,7 @@ def main():
     
     totalEventsAppAveragesList = []
     totalEventsBopalAveragesList = []
+    totalEventsBopalMSAAveragesList = []
     totalEventsGenAveragesList = []
     totalEventsOrthoAveragesList = []
     totalEventsDupAveragesList = []
@@ -123,6 +124,8 @@ def main():
     totalRelaxedAppAccuracyAveragesList = []
     totalStrictBopalAccuracyAveragesList = []
     totalRelaxedBopalAccuracyAveragesList = []
+    totalStrictBopalMSAAccuracyAveragesList = []
+    totalRelaxedBopalMSAAccuracyAveragesList = []
 
     totalStrictOrthoAccuracyAveragesList = []
     totalRelaxedOrthoAccuracyAveragesList = []
@@ -162,7 +165,21 @@ def main():
 #    totalRelaxedBopalInvTransAccuracyAveragesList = []
     totalStrictBopalSubAccuracyAveragesList = []
     totalRelaxedBopalSubAccuracyAveragesList = []
-    
+
+    #BOPAL2.0 total accuracies for different event types
+    totalStrictBopalMSADupAccuracyAveragesList = []
+    totalRelaxedBopalMSADupAccuracyAveragesList = []
+    totalStrictBopalMSALossAccuracyAveragesList = []
+    totalRelaxedBopalMSALossAccuracyAveragesList = []
+    totalStrictBopalMSAInvAccuracyAveragesList = []
+    totalRelaxedBopalMSAInvAccuracyAveragesList = []
+    totalStrictBopalMSATransAccuracyAveragesList = []
+    totalRelaxedBopalMSATransAccuracyAveragesList = []
+#    totalStrictBopalMSAInvTransAccuracyAveragesList = []
+#    totalRelaxedBopalMSAInvTransAccuracyAveragesList = []
+    totalStrictBopalMSASubAccuracyAveragesList = []
+    totalRelaxedBopalMSASubAccuracyAveragesList = []
+
     #orthoAlign total accuracies for different event types
     totalStrictOrthoDupAccuracyAveragesList = []
     totalRelaxedOrthoDupAccuracyAveragesList = []
@@ -221,6 +238,7 @@ def main():
     
     totalAppFMeasureList = []
     totalBopalFMeasureList = []
+    totalBopalMSAFMeasureList = []
 
     totalOrthoFMeasureList = []
     totalDupFMeasureList = []
@@ -233,6 +251,7 @@ def main():
     for test in tests:
         numEventsAppAveragesList = []
         numEventsBopalAveragesList = []
+        numEventsBopalMSAAveragesList = []
 
         numEventsGenAveragesList = []
         if runOrthoAlign:
@@ -248,6 +267,8 @@ def main():
         relaxedAppAccuracyAveragesList = []
         strictBopalAccuracyAveragesList = []
         relaxedBopalAccuracyAveragesList = []
+        strictBopalMSAAccuracyAveragesList = []
+        relaxedBopalMSAAccuracyAveragesList = []
 
         if runOrthoAlign:
             strictOrthoAccuracyAveragesList = []
@@ -289,6 +310,20 @@ def main():
 #        relaxedBopalInvTransAccuracyAveragesList = []
         strictBopalSubAccuracyAveragesList = []
         relaxedBopalSubAccuracyAveragesList = []
+
+        #BOPAL2.0 accuracies for different event types
+        strictBopalMSADupAccuracyAveragesList = []
+        relaxedBopalMSADupAccuracyAveragesList = []
+        strictBopalMSALossAccuracyAveragesList = []
+        relaxedBopalMSALossAccuracyAveragesList = []
+        strictBopalMSAInvAccuracyAveragesList = []
+        relaxedBopalMSAInvAccuracyAveragesList = []
+        strictBopalMSATransAccuracyAveragesList = []
+        relaxedBopalMSATransAccuracyAveragesList = []
+#        strictBopalMSAInvTransAccuracyAveragesList = []
+#        relaxedBopalMSAInvTransAccuracyAveragesList = []
+        strictBopalMSASubAccuracyAveragesList = []
+        relaxedBopalMSASubAccuracyAveragesList = []
         
         #orthoAlign accuracies for different event types
         if runOrthoAlign:
@@ -351,6 +386,7 @@ def main():
         
         appFMeasureList = []
         bopalFMeasureList = []
+        bopalMSAFMeasureList = []
 
         if runOrthoAlign:
             orthoFMeasureList = []
@@ -430,20 +466,20 @@ def main():
         for i in range(numRounds):
             startTime = time.time()
             testSetDir = testFolder + datetime.datetime.now().strftime("%m-%d-%Y_%H_%M_%S")
-            if neighbour:
-                tree = 'tree2LeafNeighbour.dnd'
             if testDiff == "Op-Value":
                 generateTests(testSetDir, tree, maxLength, numOperons, numEvents, probDup, dup_pValue, probLoss, loss_pValue, probInv, inv_pValue, probSub, probTrans, trans_pValue, equalEvents, float(args[-1]))
             else:
                 generateTests(testSetDir, tree, maxLength, numOperons, numEvents, probDup, dup_pValue, probLoss, loss_pValue, probInv, inv_pValue, probSub, probTrans, trans_pValue, equalEvents)
             if neighbour:
                 tree = args[0]
+            if neighbour:
+                tree = 'tree2LeafNeighbour.dnd'
 #            analyzeTree(tree, testSetDir)
 #            appCommand = baseCommand + tree + ' ' + testSetDir + ' > ' + testSetDir + '/appTestingOutput.txt'
 #            os.system(appCommand)
 #            subprocess.Popen(appCommand, shell=True).wait()
             appStartTime = time.time()
-            p = subprocess.Popen(['python', 'main.py', 'tree2LeafNeighbour.dnd', testSetDir], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            p = subprocess.Popen(['python', 'main.py', tree, testSetDir], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             appRunTime = time.time() - appStartTime
             out, err = p.communicate()
             with open(testSetDir + '/appTestingOutput.txt', "w+") as f:
@@ -522,7 +558,7 @@ def main():
                 relaxedBopalEventAccuracy = 0.0
                 
             numEventsBopalAveragesList.append(totalBopalEvents)
-            numEventsGenAveragesList.append(totalBopalEventsExpected)
+            # numEventsGenAveragesList.append(totalBopalEventsExpected)
             strictBopalAccuracyAveragesList.append(strictBopalEventAccuracy)
             relaxedBopalAccuracyAveragesList.append(relaxedBopalEventAccuracy)
             
@@ -538,6 +574,82 @@ def main():
 #            relaxedBopalInvTransAccuracyAveragesList.append(relaxedBopalInvTransEventAccuracy)
             strictBopalSubAccuracyAveragesList.append(strictBopalSubEventAccuracy)
             relaxedBopalSubAccuracyAveragesList.append(relaxedBopalSubEventAccuracy)
+
+            # Running BOPAL2.0 program
+            bopalMSAStartTime = time.time()
+            p = subprocess.Popen(['python', 'BOPAL2.0/main.py', tree, testSetDir], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            bopalMSARunTime = time.time() - bopalMSAStartTime
+            out, err = p.communicate()
+            with open(testSetDir + '/bopalMSATestingOutput.txt', "w+") as f:
+                f.write(out)
+                f.write(err)
+
+            with open(testFolder + "/BopalMSARuntimes.txt", "a+") as runtimeFile:
+                runtimeFile.write("%f " % (bopalMSARunTime))
+            
+            totalBopalMSAEventsFound, totalBopalMSAEventsExpected, totalBopalMSAGenesFound, totalBopalMSAGenesExpected, totalBopalMSAEvents, duplicationTotals, lossTotals, inversionTotals, transpositionTotals, substitutionTotals = readFiles(testSetDir, 'BopalMSAOutput.txt', 'generatorOutput.txt', 'bopalMSA-')
+            strictBopalMSADupEventAccuracy, relaxedBopalMSADupEventAccuracy = calculateAccuracy(duplicationTotals[0], duplicationTotals[1], duplicationTotals[2], duplicationTotals[3])
+            strictBopalMSALossEventAccuracy, relaxedBopalMSALossEventAccuracy = calculateAccuracy(lossTotals[0], lossTotals[1], lossTotals[2], lossTotals[3])
+            strictBopalMSAInvEventAccuracy, relaxedBopalMSAInvEventAccuracy = calculateAccuracy(inversionTotals[0], inversionTotals[1], inversionTotals[2], inversionTotals[3])
+            strictBopalMSATransEventAccuracy, relaxedBopalMSATransEventAccuracy = calculateAccuracy(transpositionTotals[0], transpositionTotals[1], transpositionTotals[2], transpositionTotals[3])
+#            strictBopalMSAInvTransEventAccuracy, relaxedBopalMSAInvTransEventAccuracy = calculateAccuracy(invertedTranspositionTotals[0], invertedTranspositionTotals[1], invertedTranspositionTotals[2], invertedTranspositionTotals[3])
+            strictBopalMSASubEventAccuracy, relaxedBopalMSASubEventAccuracy = calculateAccuracy(substitutionTotals[0], substitutionTotals[1], substitutionTotals[2], substitutionTotals[3])
+            
+            if printToConsole:
+                print('Events Found: %s Events Expected: %s Genes Found: %s Genes Expected: %s Total Bopal-MSA Events: %s' % (totalBopalMSAEventsFound, totalBopalMSAEventsExpected, totalBopalMSAGenesFound, totalBopalMSAGenesExpected, totalBopalMSAEvents))
+            if totalBopalMSAEventsExpected > 0:
+                strictBopalMSAEventAccuracy = float(totalBopalMSAEventsFound)/float(totalBopalMSAEventsExpected) * 100.0
+            else:
+                strictBopalMSAEventAccuracy = 0.0
+            if totalBopalMSAGenesExpected > 0:
+                relaxedBopalMSAEventAccuracy = float(totalBopalMSAGenesFound)/float(totalBopalMSAGenesExpected) * 100.0
+            else:
+                relaxedBopalMSAEventAccuracy = 0.0
+                
+            numEventsBopalMSAAveragesList.append(totalBopalMSAEvents)
+            # numEventsGenAveragesList.append(totalBopalMSAEventsExpected)
+            strictBopalMSAAccuracyAveragesList.append(strictBopalMSAEventAccuracy)
+            relaxedBopalMSAAccuracyAveragesList.append(relaxedBopalMSAEventAccuracy)
+            
+            strictBopalMSADupAccuracyAveragesList.append(strictBopalMSADupEventAccuracy)
+            relaxedBopalMSADupAccuracyAveragesList.append(relaxedBopalMSADupEventAccuracy)
+            strictBopalMSALossAccuracyAveragesList.append(strictBopalMSALossEventAccuracy)
+            relaxedBopalMSALossAccuracyAveragesList.append(relaxedBopalMSALossEventAccuracy)
+            strictBopalMSAInvAccuracyAveragesList.append(strictBopalMSAInvEventAccuracy)
+            relaxedBopalMSAInvAccuracyAveragesList.append(relaxedBopalMSAInvEventAccuracy)
+            strictBopalMSATransAccuracyAveragesList.append(strictBopalMSATransEventAccuracy)
+            relaxedBopalMSATransAccuracyAveragesList.append(relaxedBopalMSATransEventAccuracy)
+#            strictBopalMSAInvTransAccuracyAveragesList.append(strictBopalMSAInvTransEventAccuracy)
+#            relaxedBopalMSAInvTransAccuracyAveragesList.append(relaxedBopalMSAInvTransEventAccuracy)
+            strictBopalMSASubAccuracyAveragesList.append(strictBopalMSASubEventAccuracy)
+            relaxedBopalMSASubAccuracyAveragesList.append(relaxedBopalMSASubEventAccuracy)
+
+            appRootFile = testSetDir + "/appRoot.txt"
+            bopalRootFile = testSetDir + "/bopalRoot.txt"
+            bopalMSARootFile = testSetDir + "/bopalMSARoot.txt"
+            if neighbour:
+                genRootFile = testSetDir + "/genAncestor1.txt"
+            else:
+                genRootFile = testSetDir + "/root.txt"
+
+            with open(appRootFile, "r") as f:
+                appAncestor = f.readline()
+
+            with open(bopalRootFile, "r") as f:
+                bopalAncestor = f.readline()
+
+            with open(bopalMSARootFile, "r") as f:
+                bopalMSAAncestor = f.readline()
+                    
+            with open(genRootFile, "r") as f:
+                genAncestor = f.readline()
+
+            appRecall, appPrecision, appfMeasure = compareAnc(appAncestor, genAncestor, testSetDir + "/app-")
+            appFMeasureList.append(appfMeasure)
+            bopalRecall, bopalPrecision, bopalfMeasure = compareAnc(bopalAncestor, genAncestor, testSetDir + "/bopal-")
+            bopalFMeasureList.append(bopalfMeasure)
+            bopalMSARecall, bopalMSAPrecision, bopalMSAfMeasure = compareAnc(bopalMSAAncestor, genAncestor, testSetDir + "/bopalMSA-")
+            bopalMSAFMeasureList.append(bopalMSAfMeasure)
             
             if cherryTree:
                 appCommand = baseCommand + testSetDir + '/NC_000001/sequence.txt ' + testSetDir + '/NC_000002/sequence.txt ' + testSetDir
@@ -545,12 +657,6 @@ def main():
                 
                 duplossOutFile = testSetDir + "/duploss.out"
                 orthoAlignOutFile = testSetDir + "/orthoAlign.out"
-                appRootFile = testSetDir + "/appRoot.txt"
-                bopalRootFile = testSetDir + "/bopalRoot.txt"
-                if neighbour:
-                    genRootFile = testSetDir + "/genAncestor1.txt"
-                else:
-                    genRootFile = testSetDir + "/root.txt"
                 
                 if runOrthoAlign:
                     with open(orthoAlignOutFile, "r") as f:
@@ -577,15 +683,6 @@ def main():
                                 dupAncestor = f.readline().strip()
                                 break
                             line = f.readline()
-                        
-                with open(appRootFile, "r") as f:
-                    appAncestor = f.readline()
-
-                with open(bopalRootFile, "r") as f:
-                    bopalAncestor = f.readline()
-                        
-                with open(genRootFile, "r") as f:
-                    genAncestor = f.readline()
                 
                 if runOrthoAlign:
                     numEventsOrthoAveragesList.append(orthoCost)
@@ -602,14 +699,9 @@ def main():
                 if runOrthoAlign:
                     orthoRecall, orthoPrecision, orthofMeasure = compareAnc(orthoAncestor, genAncestor, testSetDir + "/ortho-")
                     orthoFMeasureList.append(orthofMeasure)
-                appRecall, appPrecision, appfMeasure = compareAnc(appAncestor, genAncestor, testSetDir + "/app-")
                 if runDupLoss:
                     dupRecall, dupPrecision, dupfMeasure = compareAnc(dupAncestor, genAncestor, testSetDir + "/dup-")
                     dupFMeasureList.append(dupfMeasure)
-                appFMeasureList.append(appfMeasure)
-
-                bopalRecall, bopalPrecision, bopalfMeasure = compareAnc(bopalAncestor, genAncestor, testSetDir + "/bopal-")
-                bopalFMeasureList.append(bopalfMeasure)
                 
                 if runOrthoAlign:
                     outputEvents(testSetDir + "/orthoAlign.out", testSetDir + "/orthoAlignEvents.out")                
@@ -817,6 +909,8 @@ def main():
             runtimeFile.write("\n")
         with open(testFolder + "/BopalRuntimes.txt", "a+") as runtimeFile:
             runtimeFile.write("\n")
+        with open(testFolder + "/BopalMSARuntimes.txt", "a+") as runtimeFile:
+            runtimeFile.write("\n")
         if cherryTree:
             if runOrthoAlign:
                 with open(testFolder + "/OrthoRuntimes.txt", "a+") as runtimeFile:
@@ -851,6 +945,17 @@ def main():
         with open(testFolder + "/bopal-EventMaxData.txt", "a+") as dataFile:
             dataFile.write("\n")
         with open(testFolder + "/bopal-EventMedianData.txt", "a+") as dataFile:
+            dataFile.write("\n")
+
+        with open(testFolder + "/bopalMSA-EventSizeData.txt", "a+") as dataFile:
+            dataFile.write("\n")
+        with open(testFolder + "/bopalMSA-EventCountData.txt", "a+") as dataFile:
+            dataFile.write("\n")
+        with open(testFolder + "/bopalMSA-EventMinData.txt", "a+") as dataFile:
+            dataFile.write("\n")
+        with open(testFolder + "/bopalMSA-EventMaxData.txt", "a+") as dataFile:
+            dataFile.write("\n")
+        with open(testFolder + "/bopalMSA-EventMedianData.txt", "a+") as dataFile:
             dataFile.write("\n")
         if cherryTree:
             if runOrthoAlign:
@@ -905,6 +1010,7 @@ def main():
         
         totalEventsAppAveragesList.append(numEventsAppAveragesList)
         totalEventsBopalAveragesList.append(numEventsBopalAveragesList)
+        totalEventsBopalMSAAveragesList.append(numEventsBopalMSAAveragesList)
         totalEventsGenAveragesList.append(numEventsGenAveragesList)
         if runOrthoAlign:
             totalEventsOrthoAveragesList.append(numEventsOrthoAveragesList)
@@ -919,6 +1025,9 @@ def main():
         totalRelaxedAppAccuracyAveragesList.append(relaxedAppAccuracyAveragesList)
         totalStrictBopalAccuracyAveragesList.append(strictBopalAccuracyAveragesList)
         totalRelaxedBopalAccuracyAveragesList.append(relaxedBopalAccuracyAveragesList)
+        totalStrictBopalMSAAccuracyAveragesList.append(strictBopalMSAAccuracyAveragesList)
+        totalRelaxedBopalMSAAccuracyAveragesList.append(relaxedBopalMSAAccuracyAveragesList)
+
         if runOrthoAlign:
             totalStrictOrthoAccuracyAveragesList.append(strictOrthoAccuracyAveragesList)
             totalRelaxedOrthoAccuracyAveragesList.append(relaxedOrthoAccuracyAveragesList)
@@ -957,6 +1066,19 @@ def main():
 #        totalRelaxedBopalInvTransAccuracyAveragesList.append(relaxedBopalInvTransAccuracyAveragesList)
         totalStrictBopalSubAccuracyAveragesList.append(strictBopalSubAccuracyAveragesList)
         totalRelaxedBopalSubAccuracyAveragesList.append(relaxedBopalSubAccuracyAveragesList)
+
+        totalStrictBopalMSADupAccuracyAveragesList.append(strictBopalMSADupAccuracyAveragesList)
+        totalRelaxedBopalMSADupAccuracyAveragesList.append(relaxedBopalMSADupAccuracyAveragesList)
+        totalStrictBopalMSALossAccuracyAveragesList.append(strictBopalMSALossAccuracyAveragesList)
+        totalRelaxedBopalMSALossAccuracyAveragesList.append(relaxedBopalMSALossAccuracyAveragesList)
+        totalStrictBopalMSAInvAccuracyAveragesList.append(strictBopalMSAInvAccuracyAveragesList)
+        totalRelaxedBopalMSAInvAccuracyAveragesList.append(relaxedBopalMSAInvAccuracyAveragesList)
+        totalStrictBopalMSATransAccuracyAveragesList.append(strictBopalMSATransAccuracyAveragesList)
+        totalRelaxedBopalMSATransAccuracyAveragesList.append(relaxedBopalMSATransAccuracyAveragesList)
+#        totalStrictBopalMSAInvTransAccuracyAveragesList.append(strictBopalMSAInvTransAccuracyAveragesList)
+#        totalRelaxedBopalMSAInvTransAccuracyAveragesList.append(relaxedBopalMSAInvTransAccuracyAveragesList)
+        totalStrictBopalMSASubAccuracyAveragesList.append(strictBopalMSASubAccuracyAveragesList)
+        totalRelaxedBopalMSASubAccuracyAveragesList.append(relaxedBopalMSASubAccuracyAveragesList)
         
         if runOrthoAlign:
             totalStrictOrthoDupAccuracyAveragesList.append(strictOrthoDupAccuracyAveragesList)
@@ -1009,6 +1131,7 @@ def main():
         
         totalAppFMeasureList.append(appFMeasureList)
         totalBopalFMeasureList.append(bopalFMeasureList)
+        totalBopalMSAFMeasureList.append(bopalMSAFMeasureList)
         if runOrthoAlign:
             totalOrthoFMeasureList.append(orthoFMeasureList)
         if runDupLoss:
@@ -1029,23 +1152,26 @@ def main():
         
         if cherryTree:
             if neighbour: 
-                graphData("sAccuracy", totalStrictAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoAccuracyAveragesList, totalAverages4 = totalStrictDupAccuracyAveragesList, totalAverages5 = totalStrictAppNeighbourAccuracyAveragesList, totalAverages6 = totalStrictOrthoNeighbourAccuracyAveragesList, totalAverages7 = totalStrictBopalAccuracyAveragesList)
-                graphData("rAccuracy", totalRelaxedAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoAccuracyAveragesList, totalAverages4 = totalRelaxedDupAccuracyAveragesList, totalAverages5 = totalRelaxedAppNeighbourAccuracyAveragesList, totalAverages6 = totalRelaxedOrthoNeighbourAccuracyAveragesList, totalAverages7 = totalRelaxedBopalAccuracyAveragesList)
-                graphData("fMeasure", totalAppFMeasureList, xAxisTitle, xAxis, totalAverages3 = totalOrthoFMeasureList, totalAverages4 = totalDupFMeasureList, totalAverages5 = totalAppNeighbourFMeasureList, totalAverages6 = totalOrthoNeighbourFMeasureList, totalAverages7 = totalBopalFMeasureList)
-                graphData("Events", totalEventsAppAveragesList, xAxisTitle, xAxis, totalEventsGenAveragesList, totalEventsOrthoAveragesList, totalEventsDupAveragesList, totalEventsAppNeighbourAveragesList, totalEventsOrthoNeighbourAveragesList, totalEventsBopalAveragesList)
+                graphData("sAccuracy", totalStrictAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoAccuracyAveragesList, totalAverages4 = totalStrictDupAccuracyAveragesList, totalAverages5 = totalStrictAppNeighbourAccuracyAveragesList, totalAverages6 = totalStrictOrthoNeighbourAccuracyAveragesList, totalAverages7 = totalStrictBopalAccuracyAveragesList, totalAverages8 = totalStrictBopalMSAAccuracyAveragesList)
+                graphData("rAccuracy", totalRelaxedAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoAccuracyAveragesList, totalAverages4 = totalRelaxedDupAccuracyAveragesList, totalAverages5 = totalRelaxedAppNeighbourAccuracyAveragesList, totalAverages6 = totalRelaxedOrthoNeighbourAccuracyAveragesList, totalAverages7 = totalRelaxedBopalAccuracyAveragesList, totalAverages8 = totalRelaxedBopalMSAAccuracyAveragesList)
+                graphData("fMeasure", totalAppFMeasureList, xAxisTitle, xAxis, totalAverages3 = totalOrthoFMeasureList, totalAverages4 = totalDupFMeasureList, totalAverages5 = totalAppNeighbourFMeasureList, totalAverages6 = totalOrthoNeighbourFMeasureList, totalAverages7 = totalBopalFMeasureList, totalAverages8 = totalBopalMSAFMeasureList)
+                graphData("Events", totalEventsAppAveragesList, xAxisTitle, xAxis, totalEventsGenAveragesList, totalEventsOrthoAveragesList, totalEventsDupAveragesList, totalEventsAppNeighbourAveragesList, totalEventsOrthoNeighbourAveragesList, totalEventsBopalAveragesList, totalEventsBopalMSAAveragesList)
             else:
-                graphData("sAccuracy", totalStrictAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoAccuracyAveragesList, totalAverages4 = totalStrictDupAccuracyAveragesList, totalAverages7 = totalStrictBopalAccuracyAveragesList)
-                graphData("rAccuracy", totalRelaxedAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoAccuracyAveragesList, totalAverages4 = totalRelaxedDupAccuracyAveragesList, totalAverages7 = totalRelaxedBopalAccuracyAveragesList)
-                graphData("fMeasure", totalAppFMeasureList, xAxisTitle, xAxis, totalAverages3 = totalOrthoFMeasureList, totalAverages4 = totalDupFMeasureList, totalAverages7 = totalBopalFMeasureList)
-                graphData("Events", totalEventsAppAveragesList, xAxisTitle, xAxis, totalEventsGenAveragesList, totalEventsOrthoAveragesList, totalEventsDupAveragesList, totalAverages7 = totalEventsBopalAveragesList)
+                graphData("sAccuracy", totalStrictAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoAccuracyAveragesList, totalAverages4 = totalStrictDupAccuracyAveragesList, totalAverages7 = totalStrictBopalAccuracyAveragesList, totalAverages8 = totalStrictBopalMSAAccuracyAveragesList)
+                graphData("rAccuracy", totalRelaxedAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoAccuracyAveragesList, totalAverages4 = totalRelaxedDupAccuracyAveragesList, totalAverages7 = totalRelaxedBopalAccuracyAveragesList, totalAverages8 = totalRelaxedBopalMSAAccuracyAveragesList)
+                graphData("fMeasure", totalAppFMeasureList, xAxisTitle, xAxis, totalAverages3 = totalOrthoFMeasureList, totalAverages4 = totalDupFMeasureList, totalAverages7 = totalBopalFMeasureList, totalAverages8 = totalBopalMSAFMeasureList)
+                graphData("Events", totalEventsAppAveragesList, xAxisTitle, xAxis, totalEventsGenAveragesList, totalEventsOrthoAveragesList, totalEventsDupAveragesList, totalAverages7 = totalEventsBopalAveragesList, totalAverages8 = totalEventsBopalMSAAveragesList)
         else:
-            graphData("sAccuracy", totalStrictAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages7 = totalStrictBopalAccuracyAveragesList)
-            graphData("rAccuracy", totalRelaxedAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages7 = totalRelaxedBopalAccuracyAveragesList)
-            graphData("Events", totalEventsAppAveragesList, xAxisTitle, xAxis, totalEventsGenAveragesList, totalAverages7 = totalEventsBopalAveragesList)
+            graphData("sAccuracy", totalStrictAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages7 = totalStrictBopalAccuracyAveragesList, totalAverages8 = totalStrictBopalMSAAccuracyAveragesList)
+            graphData("rAccuracy", totalRelaxedAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages7 = totalRelaxedBopalAccuracyAveragesList, totalAverages8 = totalRelaxedBopalMSAAccuracyAveragesList)
+            graphData("fMeasure", totalAppFMeasureList, xAxisTitle, xAxis, totalAverages7 = totalBopalFMeasureList, totalAverages8 = totalBopalMSAFMeasureList)
+            graphData("Events", totalEventsAppAveragesList, xAxisTitle, xAxis, totalEventsGenAveragesList, totalAverages7 = totalEventsBopalAveragesList, totalAverages8 = totalEventsBopalMSAAveragesList)
         
     outputData(totalEventsAppAveragesList, testFolder + "appEventsData.txt")
     outputData(totalEventsBopalAveragesList, testFolder + "bopalEventsData.txt")
+    outputData(totalEventsBopalMSAAveragesList, testFolder + "bopalMSAEventsData.txt")
     outputData(totalEventsGenAveragesList, testFolder + "genEventsData.txt")
+
     if runOrthoAlign:
         outputData(totalEventsOrthoAveragesList, testFolder + "orthoEventsData.txt")
     if runDupLoss:
@@ -1059,6 +1185,9 @@ def main():
     outputData(totalRelaxedAppAccuracyAveragesList, testFolder + "relaxedAppAccuracyData.txt")
     outputData(totalStrictBopalAccuracyAveragesList, testFolder + "strictBopalAccuracyData.txt")
     outputData(totalRelaxedBopalAccuracyAveragesList, testFolder + "relaxedBopalAccuracyData.txt")
+    outputData(totalStrictBopalMSAAccuracyAveragesList, testFolder + "strictBopalMSAAccuracyData.txt")
+    outputData(totalRelaxedBopalMSAAccuracyAveragesList, testFolder + "relaxedBopalMSAAccuracyData.txt")
+
     if runOrthoAlign:
         outputData(totalStrictOrthoAccuracyAveragesList, testFolder + "strictOrthoAccuracyData.txt")
         outputData(totalRelaxedOrthoAccuracyAveragesList, testFolder + "relaxedOrthoAccuracyData.txt")
@@ -1093,6 +1222,17 @@ def main():
     outputData(totalRelaxedBopalTransAccuracyAveragesList, testFolder + "relaxedBopalTransAccuracyData.txt")
     outputData(totalStrictBopalSubAccuracyAveragesList, testFolder + "strictBopalSubAccuracyData.txt")
     outputData(totalRelaxedBopalSubAccuracyAveragesList, testFolder + "relaxedBopalSubAccuracyData.txt")
+
+    outputData(totalStrictBopalMSADupAccuracyAveragesList, testFolder + "strictBopalMSADupAccuracyData.txt")
+    outputData(totalRelaxedBopalMSADupAccuracyAveragesList, testFolder + "relaxedBopalMSADupAccuracyData.txt")
+    outputData(totalStrictBopalMSALossAccuracyAveragesList, testFolder + "strictBopalMSALossAccuracyData.txt")
+    outputData(totalRelaxedBopalMSALossAccuracyAveragesList, testFolder + "relaxedBopalMSALossAccuracyData.txt")
+    outputData(totalStrictBopalMSAInvAccuracyAveragesList, testFolder + "strictBopalMSAInvAccuracyData.txt")
+    outputData(totalRelaxedBopalMSAInvAccuracyAveragesList, testFolder + "relaxedBopalMSAInvAccuracyData.txt")
+    outputData(totalStrictBopalMSATransAccuracyAveragesList, testFolder + "strictBopalMSATransAccuracyData.txt")
+    outputData(totalRelaxedBopalMSATransAccuracyAveragesList, testFolder + "relaxedBopalMSATransAccuracyData.txt")
+    outputData(totalStrictBopalMSASubAccuracyAveragesList, testFolder + "strictBopalMSASubAccuracyData.txt")
+    outputData(totalRelaxedBopalMSASubAccuracyAveragesList, testFolder + "relaxedBopalMSASubAccuracyData.txt")
     
     if runOrthoAlign:
         outputData(totalStrictOrthoDupAccuracyAveragesList, testFolder + "strictOrthoDupAccuracyData.txt")
@@ -1143,6 +1283,8 @@ def main():
     
     outputData(totalAppFMeasureList, testFolder + "appFMeasureData.txt")
     outputData(totalBopalFMeasureList, testFolder + "bopalFMeasureData.txt")
+    outputData(totalBopalMSAFMeasureList, testFolder + "bopalMSAFMeasureData.txt")
+
     if runOrthoAlign:
         outputData(totalOrthoFMeasureList, testFolder + "orthoFMeasureData.txt")
     if runDupLoss:
@@ -1154,30 +1296,31 @@ def main():
     
     if cherryTree:
         if neighbour: 
-            graphData("sAccuracy", totalStrictAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoAccuracyAveragesList, totalAverages4 = totalStrictDupAccuracyAveragesList, totalAverages5 = totalStrictAppNeighbourAccuracyAveragesList, totalAverages6 = totalStrictOrthoNeighbourAccuracyAveragesList, totalAverages7 = totalStrictBopalAccuracyAveragesList)
-            graphData("rAccuracy", totalRelaxedAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoAccuracyAveragesList, totalAverages4 = totalRelaxedDupAccuracyAveragesList, totalAverages5 = totalRelaxedAppNeighbourAccuracyAveragesList, totalAverages6 = totalRelaxedOrthoNeighbourAccuracyAveragesList, totalAverages7 = totalRelaxedBopalAccuracyAveragesList)
-            graphData("fMeasure", totalAppFMeasureList, xAxisTitle, xAxis, totalAverages3 = totalOrthoFMeasureList, totalAverages4 = totalDupFMeasureList, totalAverages5 = totalAppNeighbourFMeasureList, totalAverages6 = totalOrthoNeighbourFMeasureList, totalAverages7 = totalBopalFMeasureList)
-            graphData("Events", totalEventsAppAveragesList, xAxisTitle, xAxis, totalEventsGenAveragesList, totalEventsOrthoAveragesList, totalEventsDupAveragesList, totalEventsAppNeighbourAveragesList, totalEventsOrthoNeighbourAveragesList, totalEventsBopalAveragesList)
+            graphData("sAccuracy", totalStrictAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoAccuracyAveragesList, totalAverages4 = totalStrictDupAccuracyAveragesList, totalAverages5 = totalStrictAppNeighbourAccuracyAveragesList, totalAverages6 = totalStrictOrthoNeighbourAccuracyAveragesList, totalAverages7 = totalStrictBopalAccuracyAveragesList, totalAverages8 = totalStrictBopalMSAAccuracyAveragesList)
+            graphData("rAccuracy", totalRelaxedAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoAccuracyAveragesList, totalAverages4 = totalRelaxedDupAccuracyAveragesList, totalAverages5 = totalRelaxedAppNeighbourAccuracyAveragesList, totalAverages6 = totalRelaxedOrthoNeighbourAccuracyAveragesList, totalAverages7 = totalRelaxedBopalAccuracyAveragesList, totalAverages8 = totalRelaxedBopalMSAAccuracyAveragesList)
+            graphData("fMeasure", totalAppFMeasureList, xAxisTitle, xAxis, totalAverages3 = totalOrthoFMeasureList, totalAverages4 = totalDupFMeasureList, totalAverages5 = totalAppNeighbourFMeasureList, totalAverages6 = totalOrthoNeighbourFMeasureList, totalAverages7 = totalBopalFMeasureList, totalAverages8 = totalBopalMSAFMeasureList)
+            graphData("Events", totalEventsAppAveragesList, xAxisTitle, xAxis, totalEventsGenAveragesList, totalEventsOrthoAveragesList, totalEventsDupAveragesList, totalEventsAppNeighbourAveragesList, totalEventsOrthoNeighbourAveragesList, totalEventsBopalAveragesList, totalEventsBopalMSAAveragesList)
             
-            graphData("sAccuracyDup", totalStrictAppDupAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoDupAccuracyAveragesList, totalAverages4 = totalStrictDupDupAccuracyAveragesList, totalAverages5 = totalStrictAppNeighbourDupAccuracyAveragesList, totalAverages6 = totalStrictOrthoNeighbourDupAccuracyAveragesList, totalAverages7 = totalStrictBopalDupAccuracyAveragesList)
-            graphData("rAccuracyDup", totalRelaxedAppDupAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoDupAccuracyAveragesList, totalAverages4 = totalRelaxedDupDupAccuracyAveragesList, totalAverages5 = totalRelaxedAppNeighbourDupAccuracyAveragesList, totalAverages6 = totalRelaxedOrthoNeighbourDupAccuracyAveragesList, totalAverages7 = totalRelaxedBopalDupAccuracyAveragesList)
-            graphData("sAccuracyLoss", totalStrictAppLossAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoLossAccuracyAveragesList, totalAverages4 = totalStrictDupLossAccuracyAveragesList, totalAverages5 = totalStrictAppNeighbourLossAccuracyAveragesList, totalAverages6 = totalStrictOrthoNeighbourLossAccuracyAveragesList, totalAverages7 = totalStrictBopalLossAccuracyAveragesList)
-            graphData("rAccuracyLoss", totalRelaxedAppLossAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoLossAccuracyAveragesList, totalAverages4 = totalRelaxedDupLossAccuracyAveragesList, totalAverages5 = totalRelaxedAppNeighbourLossAccuracyAveragesList, totalAverages6 = totalRelaxedOrthoNeighbourLossAccuracyAveragesList, totalAverages7 = totalRelaxedBopalLossAccuracyAveragesList)
-            graphData("sAccuracyInv", totalStrictAppInvAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoInvAccuracyAveragesList, totalAverages4 = totalStrictDupInvAccuracyAveragesList, totalAverages5 = totalStrictAppNeighbourInvAccuracyAveragesList, totalAverages6 = totalStrictOrthoNeighbourInvAccuracyAveragesList, totalAverages7 = totalStrictBopalInvAccuracyAveragesList)
-            graphData("rAccuracyInv", totalRelaxedAppInvAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoInvAccuracyAveragesList, totalAverages4 = totalRelaxedDupInvAccuracyAveragesList, totalAverages5 = totalRelaxedAppNeighbourInvAccuracyAveragesList, totalAverages6 = totalRelaxedOrthoNeighbourInvAccuracyAveragesList, totalAverages7 = totalRelaxedBopalInvAccuracyAveragesList)
-            graphData("sAccuracyTrans", totalStrictAppTransAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoTransAccuracyAveragesList, totalAverages4 = totalStrictDupTransAccuracyAveragesList, totalAverages5 = totalStrictAppNeighbourTransAccuracyAveragesList, totalAverages6 = totalStrictOrthoNeighbourTransAccuracyAveragesList, totalAverages7 = totalStrictBopalTransAccuracyAveragesList)
-            graphData("rAccuracyTrans", totalRelaxedAppTransAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoTransAccuracyAveragesList, totalAverages4 = totalRelaxedDupTransAccuracyAveragesList, totalAverages5 = totalRelaxedAppNeighbourTransAccuracyAveragesList, totalAverages6 = totalRelaxedOrthoNeighbourTransAccuracyAveragesList, totalAverages7 = totalRelaxedBopalTransAccuracyAveragesList)
-            graphData("sAccuracySub", totalStrictAppSubAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoSubAccuracyAveragesList, totalAverages4 = totalStrictDupSubAccuracyAveragesList, totalAverages5 = totalStrictAppNeighbourSubAccuracyAveragesList, totalAverages6 = totalStrictOrthoNeighbourSubAccuracyAveragesList, totalAverages7 = totalStrictBopalSubAccuracyAveragesList)
-            graphData("rAccuracySub", totalRelaxedAppSubAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoSubAccuracyAveragesList, totalAverages4 = totalRelaxedDupSubAccuracyAveragesList, totalAverages5 = totalRelaxedAppNeighbourSubAccuracyAveragesList, totalAverages6 = totalRelaxedOrthoNeighbourSubAccuracyAveragesList, totalAverages7 = totalRelaxedBopalSubAccuracyAveragesList)
+            graphData("sAccuracyDup", totalStrictAppDupAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoDupAccuracyAveragesList, totalAverages4 = totalStrictDupDupAccuracyAveragesList, totalAverages5 = totalStrictAppNeighbourDupAccuracyAveragesList, totalAverages6 = totalStrictOrthoNeighbourDupAccuracyAveragesList, totalAverages7 = totalStrictBopalDupAccuracyAveragesList, totalAverages8 = totalStrictBopalMSADupAccuracyAveragesList)
+            graphData("rAccuracyDup", totalRelaxedAppDupAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoDupAccuracyAveragesList, totalAverages4 = totalRelaxedDupDupAccuracyAveragesList, totalAverages5 = totalRelaxedAppNeighbourDupAccuracyAveragesList, totalAverages6 = totalRelaxedOrthoNeighbourDupAccuracyAveragesList, totalAverages7 = totalRelaxedBopalDupAccuracyAveragesList, totalAverages8 = totalRelaxedBopalMSADupAccuracyAveragesList)
+            graphData("sAccuracyLoss", totalStrictAppLossAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoLossAccuracyAveragesList, totalAverages4 = totalStrictDupLossAccuracyAveragesList, totalAverages5 = totalStrictAppNeighbourLossAccuracyAveragesList, totalAverages6 = totalStrictOrthoNeighbourLossAccuracyAveragesList, totalAverages7 = totalStrictBopalLossAccuracyAveragesList, totalAverages8 = totalStrictBopalMSALossAccuracyAveragesList)
+            graphData("rAccuracyLoss", totalRelaxedAppLossAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoLossAccuracyAveragesList, totalAverages4 = totalRelaxedDupLossAccuracyAveragesList, totalAverages5 = totalRelaxedAppNeighbourLossAccuracyAveragesList, totalAverages6 = totalRelaxedOrthoNeighbourLossAccuracyAveragesList, totalAverages7 = totalRelaxedBopalLossAccuracyAveragesList, totalAverages8 = totalRelaxedBopalMSALossAccuracyAveragesList)
+            graphData("sAccuracyInv", totalStrictAppInvAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoInvAccuracyAveragesList, totalAverages4 = totalStrictDupInvAccuracyAveragesList, totalAverages5 = totalStrictAppNeighbourInvAccuracyAveragesList, totalAverages6 = totalStrictOrthoNeighbourInvAccuracyAveragesList, totalAverages7 = totalStrictBopalInvAccuracyAveragesList, totalAverages8 = totalStrictBopalMSAInvAccuracyAveragesList)
+            graphData("rAccuracyInv", totalRelaxedAppInvAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoInvAccuracyAveragesList, totalAverages4 = totalRelaxedDupInvAccuracyAveragesList, totalAverages5 = totalRelaxedAppNeighbourInvAccuracyAveragesList, totalAverages6 = totalRelaxedOrthoNeighbourInvAccuracyAveragesList, totalAverages7 = totalRelaxedBopalInvAccuracyAveragesList, totalAverages8 = totalRelaxedBopalMSAInvAccuracyAveragesList)
+            graphData("sAccuracyTrans", totalStrictAppTransAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoTransAccuracyAveragesList, totalAverages4 = totalStrictDupTransAccuracyAveragesList, totalAverages5 = totalStrictAppNeighbourTransAccuracyAveragesList, totalAverages6 = totalStrictOrthoNeighbourTransAccuracyAveragesList, totalAverages7 = totalStrictBopalTransAccuracyAveragesList, totalAverages8 = totalStrictBopalMSATransAccuracyAveragesList)
+            graphData("rAccuracyTrans", totalRelaxedAppTransAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoTransAccuracyAveragesList, totalAverages4 = totalRelaxedDupTransAccuracyAveragesList, totalAverages5 = totalRelaxedAppNeighbourTransAccuracyAveragesList, totalAverages6 = totalRelaxedOrthoNeighbourTransAccuracyAveragesList, totalAverages7 = totalRelaxedBopalTransAccuracyAveragesList, totalAverages8 = totalRelaxedBopalMSATransAccuracyAveragesList)
+            graphData("sAccuracySub", totalStrictAppSubAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoSubAccuracyAveragesList, totalAverages4 = totalStrictDupSubAccuracyAveragesList, totalAverages5 = totalStrictAppNeighbourSubAccuracyAveragesList, totalAverages6 = totalStrictOrthoNeighbourSubAccuracyAveragesList, totalAverages7 = totalStrictBopalSubAccuracyAveragesList, totalAverages8 = totalStrictBopalMSASubAccuracyAveragesList)
+            graphData("rAccuracySub", totalRelaxedAppSubAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoSubAccuracyAveragesList, totalAverages4 = totalRelaxedDupSubAccuracyAveragesList, totalAverages5 = totalRelaxedAppNeighbourSubAccuracyAveragesList, totalAverages6 = totalRelaxedOrthoNeighbourSubAccuracyAveragesList, totalAverages7 = totalRelaxedBopalSubAccuracyAveragesList, totalAverages8 = totalRelaxedBopalMSASubAccuracyAveragesList)
         else:
-            graphData("sAccuracy", totalStrictAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoAccuracyAveragesList, totalAverages4 = totalStrictDupAccuracyAveragesList, totalAverages7 = totalStrictBopalAccuracyAveragesList)
-            graphData("rAccuracy", totalRelaxedAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoAccuracyAveragesList, totalAverages4 = totalRelaxedDupAccuracyAveragesList, totalAverages7 = totalRelaxedBopalAccuracyAveragesList)
-            graphData("fMeasure", totalAppFMeasureList, xAxisTitle, xAxis, totalAverages3 = totalOrthoFMeasureList, totalAverages4 = totalDupFMeasureList, totalAverages7 = totalBopalFMeasureList)
-            graphData("Events", totalEventsAppAveragesList, xAxisTitle, xAxis, totalEventsGenAveragesList, totalEventsOrthoAveragesList, totalEventsDupAveragesList, totalAverages7 = totalEventsBopalAveragesList)
+            graphData("sAccuracy", totalStrictAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalStrictOrthoAccuracyAveragesList, totalAverages4 = totalStrictDupAccuracyAveragesList, totalAverages7 = totalStrictBopalAccuracyAveragesList, totalAverages8 = totalStrictBopalMSAAccuracyAveragesList)
+            graphData("rAccuracy", totalRelaxedAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages3 = totalRelaxedOrthoAccuracyAveragesList, totalAverages4 = totalRelaxedDupAccuracyAveragesList, totalAverages7 = totalRelaxedBopalAccuracyAveragesList, totalAverages8 = totalRelaxedBopalMSAAccuracyAveragesList)
+            graphData("fMeasure", totalAppFMeasureList, xAxisTitle, xAxis, totalAverages3 = totalOrthoFMeasureList, totalAverages4 = totalDupFMeasureList, totalAverages7 = totalBopalFMeasureList, totalAverages8 = totalBopalMSAFMeasureList)
+            graphData("Events", totalEventsAppAveragesList, xAxisTitle, xAxis, totalEventsGenAveragesList, totalEventsOrthoAveragesList, totalEventsDupAveragesList, totalAverages7 = totalEventsBopalAveragesList, totalAverages8 = totalEventsBopalMSAAveragesList)
     else:
-        graphData("sAccuracy", totalStrictAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages7 = totalStrictBopalAccuracyAveragesList)
-        graphData("rAccuracy", totalRelaxedAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages7 = totalRelaxedBopalAccuracyAveragesList)
-        graphData("Events", totalEventsAppAveragesList, xAxisTitle, xAxis, totalEventsGenAveragesList, totalAverages7 = totalEventsBopalAveragesList)
+        graphData("sAccuracy", totalStrictAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages7 = totalStrictBopalAccuracyAveragesList, totalAverages8 = totalStrictBopalMSAAccuracyAveragesList)
+        graphData("rAccuracy", totalRelaxedAppAccuracyAveragesList, xAxisTitle, xAxis, totalAverages7 = totalRelaxedBopalAccuracyAveragesList, totalAverages8 = totalRelaxedBopalMSAAccuracyAveragesList)
+        graphData("fMeasure", totalAppFMeasureList, xAxisTitle, xAxis, totalAverages7 = totalBopalFMeasureList, totalAverages8 = totalBopalMSAFMeasureList)
+        graphData("Events", totalEventsAppAveragesList, xAxisTitle, xAxis, totalEventsGenAveragesList, totalAverages7 = totalEventsBopalAveragesList, totalAverages8 = totalEventsBopalMSAAveragesList)
         
     plotRuntimes(cherryTree, neighbour, xAxisTitle, xAxis)
     plotEventSizeData(cherryTree, neighbour, xAxisTitle, xAxis)
@@ -1215,6 +1358,8 @@ def printAverages(AveragesPerTest):
 def plotRuntimes(cherryTree, neighbour, xAxisTitle, xAxis):
     appTotalRuntimes = readDataFile(testFolder + "/AppRuntimes.txt")
     bopalTotalRuntimes = readDataFile(testFolder + "/BopalRuntimes.txt")
+    bopalMSATotalRuntimes = readDataFile(testFolder + "/BopalMSARuntimes.txt")
+
     if cherryTree:
         if runOrthoAlign:
             orthoTotalRuntimes = readDataFile(testFolder + "/OrthoRuntimes.txt")
@@ -1233,11 +1378,11 @@ def plotRuntimes(cherryTree, neighbour, xAxisTitle, xAxis):
             else:
                 orthoNeighbourTotalRuntimes = None
             
-            graphData("Runtime", appTotalRuntimes, xAxisTitle, xAxis, totalAverages3 = orthoTotalRuntimes, totalAverages4 = dupTotalRuntimes, totalAverages5 = appNeighbourTotalRuntimes, totalAverages6 = orthoNeighbourTotalRuntimes, totalAverages7 = bopalTotalRuntimes)
+            graphData("Runtime", appTotalRuntimes, xAxisTitle, xAxis, totalAverages3 = orthoTotalRuntimes, totalAverages4 = dupTotalRuntimes, totalAverages5 = appNeighbourTotalRuntimes, totalAverages6 = orthoNeighbourTotalRuntimes, totalAverages7 = bopalTotalRuntimes, totalAverages8 = bopalMSATotalRuntimes)
         else:
-            graphData("Runtime", appTotalRuntimes, xAxisTitle, xAxis, totalAverages3 = orthoTotalRuntimes, totalAverages4 = dupTotalRuntimes, totalAverages7 = bopalTotalRuntimes)
+            graphData("Runtime", appTotalRuntimes, xAxisTitle, xAxis, totalAverages3 = orthoTotalRuntimes, totalAverages4 = dupTotalRuntimes, totalAverages7 = bopalTotalRuntimes, totalAverages8 = bopalMSATotalRuntimes)
     else:
-        graphData("Runtime", appTotalRuntimes, xAxisTitle, xAxis, totalAverages7 = bopalTotalRuntimes)
+        graphData("Runtime", appTotalRuntimes, xAxisTitle, xAxis, totalAverages7 = bopalTotalRuntimes, totalAverages8 = bopalMSATotalRuntimes)
         
 def plotEventSizeData(cherryTree, neighbour, xAxisTitle, xAxis):
     appEventSizes = readDataFile(testFolder + "/app-EventSizeData.txt")
@@ -1255,6 +1400,14 @@ def plotEventSizeData(cherryTree, neighbour, xAxisTitle, xAxis):
     bopalMinSizes = readDataFile(testFolder + "/bopal-EventMinData.txt")
     bopalMaxSizes = readDataFile(testFolder + "/bopal-EventMaxData.txt")
     bopalMedianSizes = readDataFile(testFolder + "/bopal-EventMedianData.txt")
+
+    bopalMSAEventSizes = readDataFile(testFolder + "/bopalMSA-EventSizeData.txt")
+    bopalMSANumEvents = readDataFile(testFolder + "/bopalMSA-EventCountData.txt")
+    bopalMSAAvgEventSizes = calculateSizeAverages(bopalMSAEventSizes, bopalMSANumEvents)
+    
+    bopalMSAMinSizes = readDataFile(testFolder + "/bopalMSA-EventMinData.txt")
+    bopalMSAMaxSizes = readDataFile(testFolder + "/bopalMSA-EventMaxData.txt")
+    bopalMSAMedianSizes = readDataFile(testFolder + "/bopalMSA-EventMedianData.txt")
     
     if cherryTree:
         if runOrthoAlign:
@@ -1317,15 +1470,15 @@ def plotEventSizeData(cherryTree, neighbour, xAxisTitle, xAxis):
                 orthoNeighbourMaxSizes = None
                 orthoNeighbourMedianSizes = None
 
-            graphData("AvgEventSize", appAvgEventSizes, xAxisTitle, xAxis, totalAverages3 = orthoAvgEventSizes, totalAverages4 = dupAvgEventSizes, totalAverages5 = appNeighbourAvgEventSizes, totalAverages6 = orthoNeighbourAvgEventSizes, totalAverages7 = bopalAvgEventSizes)
-            graphData("AvgMinSize", appMinSizes, xAxisTitle, xAxis, totalAverages3 = orthoMinSizes, totalAverages4 = dupMinSizes, totalAverages5 = appNeighbourMinSizes, totalAverages6 = orthoNeighbourMinSizes, totalAverages7 = bopalMinSizes)
-            graphData("AvgMaxSize", appMaxSizes, xAxisTitle, xAxis, totalAverages3 = orthoMaxSizes, totalAverages4 = dupMaxSizes, totalAverages5 = appNeighbourMaxSizes, totalAverages6 = orthoNeighbourMaxSizes, totalAverages7 = bopalMaxSizes)
-            graphData("AvgMedianSize", appMedianSizes, xAxisTitle, xAxis, totalAverages3 = orthoMedianSizes, totalAverages4 = dupMedianSizes, totalAverages5 = appNeighbourMedianSizes, totalAverages6 = orthoNeighbourMedianSizes, totalAverages7 = bopalMedianSizes)
-            graphData("AvgTotalSize", appEventSizes, xAxisTitle, xAxis, totalAverages3 = orthoEventSizes, totalAverages4 = dupEventSizes, totalAverages5 = appNeighbourEventSizes, totalAverages6 = orthoNeighbourEventSizes, totalAverages7 = bopalEventSizes)
+            graphData("AvgEventSize", appAvgEventSizes, xAxisTitle, xAxis, totalAverages3 = orthoAvgEventSizes, totalAverages4 = dupAvgEventSizes, totalAverages5 = appNeighbourAvgEventSizes, totalAverages6 = orthoNeighbourAvgEventSizes, totalAverages7 = bopalAvgEventSizes, totalAverages8 = bopalMSAAvgEventSizes)
+            graphData("AvgMinSize", appMinSizes, xAxisTitle, xAxis, totalAverages3 = orthoMinSizes, totalAverages4 = dupMinSizes, totalAverages5 = appNeighbourMinSizes, totalAverages6 = orthoNeighbourMinSizes, totalAverages7 = bopalMinSizes, totalAverages8 = bopalMSAMinSizes)
+            graphData("AvgMaxSize", appMaxSizes, xAxisTitle, xAxis, totalAverages3 = orthoMaxSizes, totalAverages4 = dupMaxSizes, totalAverages5 = appNeighbourMaxSizes, totalAverages6 = orthoNeighbourMaxSizes, totalAverages7 = bopalMaxSizes, totalAverages8 = bopalMSAMaxSizes)
+            graphData("AvgMedianSize", appMedianSizes, xAxisTitle, xAxis, totalAverages3 = orthoMedianSizes, totalAverages4 = dupMedianSizes, totalAverages5 = appNeighbourMedianSizes, totalAverages6 = orthoNeighbourMedianSizes, totalAverages7 = bopalMedianSizes, totalAverages8 = bopalMSAMedianSizes)
+            graphData("AvgTotalSize", appEventSizes, xAxisTitle, xAxis, totalAverages3 = orthoEventSizes, totalAverages4 = dupEventSizes, totalAverages5 = appNeighbourEventSizes, totalAverages6 = orthoNeighbourEventSizes, totalAverages7 = bopalEventSizes, totalAverages8 = bopalMSAEventSizes)
         else:
-            graphData("AvgEventSize", appAvgEventSizes, xAxisTitle, xAxis, totalAverages3 = orthoAvgEventSizes, totalAverages4 = dupAvgEventSizes, totalAverages7 = bopalAvgEventSizes)
+            graphData("AvgEventSize", appAvgEventSizes, xAxisTitle, xAxis, totalAverages3 = orthoAvgEventSizes, totalAverages4 = dupAvgEventSizes, totalAverages7 = bopalAvgEventSizes, totalAverages8 = bopalMSAAvgEventSizes)
     else:
-        graphData("AvgEventSize", appAvgEventSizes, xAxisTitle, xAxis, totalAverages7 = bopalAvgEventSizes)
+        graphData("AvgEventSize", appAvgEventSizes, xAxisTitle, xAxis, totalAverages7 = bopalAvgEventSizes, totalAverages8 = bopalMSAAvgEventSizes)
         
 def readDataFile(fileName):
     totalData = []
@@ -1358,7 +1511,7 @@ def calculateSizeAverages(sizes, count):
         print averages
     return averages
 
-def graphData(graphType, totalAverages, xAxisTitle, xAxis, totalAverages2 = None, totalAverages3 = None, totalAverages4 = None, totalAverages5 = None, totalAverages6 = None, totalAverages7 = None):
+def graphData(graphType, totalAverages, xAxisTitle, xAxis, totalAverages2 = None, totalAverages3 = None, totalAverages4 = None, totalAverages5 = None, totalAverages6 = None, totalAverages7 = None, totalAverages8 = None):
     if graphType == "Events":
         title = "Average Number of Events"
         yAxisTitle = "Number of Events"
@@ -1454,7 +1607,7 @@ def graphData(graphType, totalAverages, xAxisTitle, xAxis, totalAverages2 = None
             
             average = currentSum / len(averagesList)
             averages.append(average)
-        line1, = plt.plot(xAxis, averages, 'o-', label='BOPAL 2.0')
+        line1, = plt.plot(xAxis, averages, 'o-', label='BOPAL2.0-MP')
         labels.append(line1)
     
     averages2 = []
@@ -1543,6 +1696,20 @@ def graphData(graphType, totalAverages, xAxisTitle, xAxis, totalAverages2 = None
             averages7.append(average)
         line7, = plt.plot(xAxis, averages7, 'ok--', label='BOPAL')
         labels.append(line7)
+
+    if totalAverages8 is not None:
+        averages8 = []
+        if printToConsole:
+            print totalAverages8
+        for averagesList in totalAverages8:
+            currentSum = 0.0    
+            for average in averagesList:
+                currentSum += average
+            
+            average = currentSum / len(averagesList)
+            averages8.append(average)
+        line8, = plt.plot(xAxis, averages8, 'og-', label='BOPAL2.0-MSA')
+        labels.append(line8)
         
     plt.legend(handles=labels)
     
@@ -1550,6 +1717,7 @@ def graphData(graphType, totalAverages, xAxisTitle, xAxis, totalAverages2 = None
         print averages
 #    plt.show()
     f.savefig(testFolder + graphType + ".pdf", bbox_inches='tight')
+    plt.close(f)
     
 def outputData(totalAverages, fileName):
     with open(fileName, 'w+') as f:
