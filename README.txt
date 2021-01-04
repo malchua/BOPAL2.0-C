@@ -1,11 +1,13 @@
 BOPAL takes two arguments, the newick tree file and the folder containing the sequence files.
 As an example, to run BOPAL on the Bacillus data set use the following command:
 
-python main.py tree.dnd Bacillus_Test
+python main.py tree.dnd Bacillus_Test > printOutput.txt
 
 To run the pipeline, use the following command (must have OrthoAlign and DupLoss in order to fully run):
 
-python pipeline.py [TESTS FILE] -cne [NUM RUNS] [OUTPUT FOLDER NAME]
+python pipeline.py [TESTS FILE] -cnedo [NUM RUNS] [OUTPUT FOLDER NAME]
+
+Ex. python pipeline.py phylo-equal-events-tests.txt -e 5 Mini_Test11_MinEvents_5Leaf > pipelineOutput.txt
 
 TESTS FILE: text file containing set of tests we plan to run (ex. cherry-equal-events-tests.txt).
 NUM RUNS: Number of times we want to run each test in the tests file.
