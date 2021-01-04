@@ -481,7 +481,7 @@ def traverseNewickTreeAndOutputToFile(node):
         foundStrain = next(filteredList, None)
         if foundStrain != None:
             outputStrainDetailsToFile(outputFileName, foundStrain)
-            outputGenomeToFile(node.name + ".txt", foundStrain)
+            outputGenomeToFile("bopal-" + node.name + ".txt", foundStrain)
 
 ######################################################
 # traverseNewickTree
