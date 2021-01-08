@@ -898,112 +898,37 @@ def main():
             runTime = time.time() - startTime
             testRunTimes.append(runTime)
         
-        with open(testFolder + "/genNumOperonsData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-        with open(testFolder + "/genNumSingletonsData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-        with open(testFolder + "/genTotalSizesData.txt", "a+") as dataFile:
-            dataFile.write("\n")
+        addNewLine(testFolder + "/genNumOperonsData.txt")
+        addNewLine(testFolder + "/genNumSingletonsData.txt")
+        addNewLine(testFolder + "/genTotalSizesData.txt")
+
+        addNewLine(testFolder + "/AppRuntimes.txt")
+        addNewLine(testFolder + "/BopalRuntimes.txt")
+        addNewLine(testFolder + "/BopalMSARuntimes.txt")
+        if cherryTree:
+            if runOrthoAlign:
+                addNewLine(testFolder + "/OrthoRuntimes.txt")
+            if runDupLoss:
+                addNewLine(testFolder + "/DuplossRuntimes.txt")
+            if neighbour:
+                addNewLine(testFolder + "/BopalNeighbourRuntimes.txt")
+                if runOrthoAlign:
+                    addNewLine(testFolder + "/OrthoNeighbourRuntimes.txt")
         
-        with open(testFolder + "/AppRuntimes.txt", "a+") as runtimeFile:
-            runtimeFile.write("\n")
-        with open(testFolder + "/BopalRuntimes.txt", "a+") as runtimeFile:
-            runtimeFile.write("\n")
-        with open(testFolder + "/BopalMSARuntimes.txt", "a+") as runtimeFile:
-            runtimeFile.write("\n")
+        newLineDataFiles(testFolder, "app")
+        newLineDataFiles(testFolder, "bopal")
+        newLineDataFiles(testFolder, "bopalMSA")
+
         if cherryTree:
             if runOrthoAlign:
-                with open(testFolder + "/OrthoRuntimes.txt", "a+") as runtimeFile:
-                    runtimeFile.write("\n")
+                newLineDataFiles(testFolder, "ortho")                
             if runDupLoss:
-                with open(testFolder + "/DuplossRuntimes.txt", "a+") as runtimeFile:
-                    runtimeFile.write("\n")
-            if neighbour:
-                with open(testFolder + "/BopalNeighbourRuntimes.txt", "a+") as runtimeFile:
-                    runtimeFile.write("\n")
-                if runOrthoAlign:
-                    with open(testFolder + "/OrthoNeighbourRuntimes.txt", "a+") as runtimeFile:
-                        runtimeFile.write("\n")
-                    
-        with open(testFolder + "/app-EventSizeData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-        with open(testFolder + "/app-EventCountData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-        with open(testFolder + "/app-EventMinData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-        with open(testFolder + "/app-EventMaxData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-        with open(testFolder + "/app-EventMedianData.txt", "a+") as dataFile:
-            dataFile.write("\n")
+                newLineDataFiles(testFolder, "dup")
 
-        with open(testFolder + "/bopal-EventSizeData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-        with open(testFolder + "/bopal-EventCountData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-        with open(testFolder + "/bopal-EventMinData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-        with open(testFolder + "/bopal-EventMaxData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-        with open(testFolder + "/bopal-EventMedianData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-
-        with open(testFolder + "/bopalMSA-EventSizeData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-        with open(testFolder + "/bopalMSA-EventCountData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-        with open(testFolder + "/bopalMSA-EventMinData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-        with open(testFolder + "/bopalMSA-EventMaxData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-        with open(testFolder + "/bopalMSA-EventMedianData.txt", "a+") as dataFile:
-            dataFile.write("\n")
-        if cherryTree:
-            if runOrthoAlign:
-                with open(testFolder + "/ortho-EventSizeData.txt", "a+") as dataFile:
-                    dataFile.write("\n")
-                with open(testFolder + "/ortho-EventCountData.txt", "a+") as dataFile:
-                    dataFile.write("\n")
-                with open(testFolder + "/ortho-EventMinData.txt", "a+") as dataFile:
-                    dataFile.write("\n")
-                with open(testFolder + "/ortho-EventMaxData.txt", "a+") as dataFile:
-                    dataFile.write("\n")
-                with open(testFolder + "/ortho-EventMedianData.txt", "a+") as dataFile:
-                    dataFile.write("\n")
-                
-            if runDupLoss:
-                with open(testFolder + "/dup-EventSizeData.txt", "a+") as dataFile:
-                    dataFile.write("\n")
-                with open(testFolder + "/dup-EventCountData.txt", "a+") as dataFile:
-                    dataFile.write("\n")
-                with open(testFolder + "/dup-EventMinData.txt", "a+") as dataFile:
-                    dataFile.write("\n")
-                with open(testFolder + "/dup-EventMaxData.txt", "a+") as dataFile:
-                    dataFile.write("\n")
-                with open(testFolder + "/dup-EventMedianData.txt", "a+") as dataFile:
-                    dataFile.write("\n")
             if neighbour:
-                with open(testFolder + "/bopalNeighbour-EventSizeData.txt", "a+") as dataFile:
-                    dataFile.write("\n")
-                with open(testFolder + "/bopalNeighbour-EventCountData.txt", "a+") as dataFile:
-                    dataFile.write("\n")
-                with open(testFolder + "/bopalNeighbour-EventMinData.txt", "a+") as dataFile:
-                    dataFile.write("\n")
-                with open(testFolder + "/bopalNeighbour-EventMaxData.txt", "a+") as dataFile:
-                    dataFile.write("\n")
-                with open(testFolder + "/bopalNeighbour-EventMedianData.txt", "a+") as dataFile:
-                    dataFile.write("\n")
-                
+                newLineDataFiles(testFolder, "bopalNeighbour")                
                 if runOrthoAlign:
-                    with open(testFolder + "/orthoNeighbour-EventSizeData.txt", "a+") as dataFile:
-                        dataFile.write("\n")
-                    with open(testFolder + "/orthoNeighbour-EventCountData.txt", "a+") as dataFile:
-                        dataFile.write("\n")
-                    with open(testFolder + "/orthoNeighbour-EventMinData.txt", "a+") as dataFile:
-                        dataFile.write("\n")
-                    with open(testFolder + "/orthoNeighbour-EventMaxData.txt", "a+") as dataFile:
-                        dataFile.write("\n")
-                    with open(testFolder + "/orthoNeighbour-EventMedianData.txt", "a+") as dataFile:
-                        dataFile.write("\n")
+                    newLineDataFiles(testFolder, "orthoNeighbour")
         
         averageRunTimePerTest.append(testRunTimes)
 #        printAverages(averageRunTimePerTest)
@@ -1341,6 +1266,31 @@ def calculateAccuracy(totalEventsFound, totalEventsExpected, totalGenesFound, to
         relaxedEventAccuracy = 0.0
         
     return strictEventAccuracy, relaxedEventAccuracy
+
+def appendToTotals(appAveragesList, bopalAveragesList, bopalMSAAveragesList, genAveragesList, orthoAveragesList, dupAveragesList, appNeighbourAveragesList, orthoNeighbourAveragesList):
+    totalAppAveragesList.append(appAveragesList)
+    totalBopalAveragesList.append(bopalAveragesList)
+    totalBopalMSAAveragesList.append(bopalMSAAveragesList)
+    totalGenAveragesList.append(genAveragesList)
+    if runOrthoAlign:
+        totalOrthoAveragesList.append(orthoAveragesList)
+    if runDupLoss:
+        totalDupAveragesList.append(dupAveragesList)
+    
+    totalAppNeighbourAveragesList.append(appNeighbourAveragesList)
+    if runOrthoAlign:
+        totalOrthoNeighbourAveragesList.append(orthoNeighbourAveragesList)
+
+def newLineDataFiles(testFolder, prefix):
+    addNewLine(testFolder + "/" + prefix + "-EventSizeData.txt")
+    addNewLine(testFolder + "/" + prefix + "-EventCountData.txt")
+    addNewLine(testFolder + "/" + prefix + "-EventMinData.txt")
+    addNewLine(testFolder + "/" + prefix + "-EventMaxData.txt")
+    addNewLine(testFolder + "/" + prefix + "-EventMedianData.txt")
+
+def addNewLine(filePath):
+    with open(filePath, "a+") as dataFile:
+        dataFile.write("\n")
 
 def printAverages(AveragesPerTest):
     runTimeSum = 0
