@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('agg')
 import globals
 import copy
 import multiset
@@ -186,7 +188,7 @@ def createDotPlot(events, strain1, strain2, testFolder = ''):
     if globals.printToConsole:
         print("x" * 70)
     for i in range(0, len(events)):
-        if events[i].technique == 'Global Alignment' or events[i].technique == 'Local Alignment':
+        if events[i].technique == 'Global Alignment' or events[i].technique == 'Multiple Sequence Alignment':
             #Assign the coords to the appropriate array, the index represents the position of the operon with respect to the genome
             totalNumEvents = events[i].numMismatches + events[i].numCodonMismatches + events[i].numSubstitutions
             if events[i].technique == 'Local Alignment':

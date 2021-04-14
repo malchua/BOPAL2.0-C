@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('agg')
 #!/usr/bin/python
 # Krister Swenson                                                  Summer 2012
 #
@@ -30,6 +32,7 @@ import time
 #sys.path.append('/u/tremblao/Doctorat/orthogonalEdgeCover/program/networkxGraphGen/networkx-1.6/build/lib/')  #to import networkx
 #sys.path.append('/u/tremblao/DownloadedSourceCode/CPLEX/cplex/python/x86-64_sles10_4.1/')  #to import CPLEX
 sys.path.append('C:/Program Files/IBM/ILOG/CPLEX_Studio129/cplex/python/2.7/x64_win64/')
+#sys.path.append('/local/workspace01/umchua2/CPLEX_Studio129/cplex/python/2.7/x86-64_linux/')
 
 from collections import defaultdict
 from math import fabs
