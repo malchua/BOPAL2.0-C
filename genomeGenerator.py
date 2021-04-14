@@ -1061,6 +1061,11 @@ def performInversion(before, after, p):
             lengthAfter = min(geometricSampling(p), len(after))
         else:
             lengthAfter = min(geometricSampling(p, 0), len(after))
+
+    if lengthBefore == len(before):
+        lengthBefore = lengthBefore/2
+    if lengthAfter == len(after):
+        lengthAfter = lengthAfter/2
     
     if neighbour:
         # Make sure we have at least 10 genes in our inversion
