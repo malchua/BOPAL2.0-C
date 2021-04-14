@@ -142,16 +142,23 @@ def parseOutputFile(filename):
 	return dels, dups, invs, transpos, invTranspos, subs, posTerminusX, posLastGeneX, posTerminusY, indexToGeneDict
 	
 	
-def outputEvents(algoOutput, outputFile):
+def outputEvents(algoOutput, outputFile, strainName1=None, strainName2=None, newTree=True):
 
-	f = open(outputFile, 'w')
+	f = open(outputFile, 'a')
 	
 	dels, dups, invs, transpos, invTranspos, subs, posTerminusX, posLastGeneX, posTerminusY, indexToGeneDict = parseOutputFile(algoOutput)
 	
 	#Header stuff
-	eventsStrX = "#tree\n"
-	eventsStrX += "Strain:NC_000001\n"
-	eventsStrY = "Strain:NC_000002\n"
+	if newTree:
+		eventsStrX = "#tree\n"
+	else:
+		eventsStrX = ""
+	if strainName1 is None or strainName2 is None:
+		eventsStrX += "Strain:NC_000001\n"
+		eventsStrY = "Strain:NC_000002\n"
+	else:
+		eventsStrX += "Strain:" + strainName1 + "\n"
+		eventsStrY = "Strain:" + strainName2 + "\n"
 	eventsStrX += "Codon Mismatch:\n"  #those would not be identified by OrthoAlign nor duploss
 	eventsStrY += "Codon Mismatch:\n"  #those would not be identified by OrthoAlign nor duploss
 	

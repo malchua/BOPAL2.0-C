@@ -2,6 +2,7 @@ import os
 import sys
 import getopt
 import time
+from Bio import Phylo
 
 printToConsole = False
 
@@ -10,6 +11,8 @@ ORTHOALIGN_PATH =  "OrthoAlign/OrthoAlign/"; ##I recommend using an absolute pat
 ORTHOALIGN_EXEC = "Aligning"
 DUPLOSS_PATH = "2-SPP/"  ##I recommend using an absolute path
 DUPLOSS_EXEC = "duploss"
+
+testSetDir = ""
 
 ### METHODS ###
 def getFirstLineFromFile(filename):
@@ -72,7 +75,66 @@ def getCostAndAncestorFromOutFile(outfile):
     
     f.close()
     return cost, ancestor
-    
+
+def traverseNewickTree(node, parentNode):
+    leftSibling = None
+    rightSibling = None
+
+    #Check there's any descendants
+    if len(node.clades) > 0:
+        leftSibling = traverseNewickTree(node.clades[0], node)
+        if len(node.clades) > 1:
+            rightSibling = traverseNewickTree(node.clades[1], node)
+
+    if node.name != None and len(node.name) > 0:
+        print node.name
+        genomeFile = testSetDir + '/' + node.name + '/sequence.txt'
+
+        if(not os.path.exists(genomeFile)):
+            sys.exit("Error: "+genomeFile+" does not exist.\n")
+        genome = getFirstLineFromFile(genomeFile)
+
+        #Removing all whitespaces
+        genome = genome.replace(" ", "")
+        #Removing square brackets and distributing negative signs inside operons, updating origin and terminus
+        genome = remBracketsDistributeNegSign(genome)
+
+        return genome
+
+    #Case 1: Both siblings exist therefore we need to construct their ancestor
+    if leftSibling != None and rightSibling != None:
+        command = "java -classpath " + ORTHOALIGN_PATH + " " + ORTHOALIGN_EXEC + " -dt " + leftSibling + " " + rightSibling + " > " + orthoAlignOutFile
+        os.system(command)
+        
+        orthoCost, orthoAncestor = getCostAndAncestorFromOutFile(orthoAlignOutFile)
+        return orthoAncestor
+    #Case 2: Only the left sibling exists so return it
+    elif leftSibling != None:
+        # print "Case 2"
+        return leftSibling
+    #Case 3: Only the right sibling exists so return it
+    elif rightSibling != None:
+        # print "Case 3"
+        return rightSibling
+    #Case 4: None of the siblings exist so return NULL
+    else:
+        # print "Case 4"
+        return None
+
+
+def runOrthoAlignOnTree(newickFileName, testSetDir):
+    print "Running OrthoAlign on newickTree"
+    global testSetDir = testSetDir
+    newickTree = Phylo.read(newickFileName, 'newick')
+
+    orthoAlignStartTime = time.time()
+    result = traverseNewickTree(newickTree.clade, None)
+    orthoAlignRunTime = time.time() - orthoAlignStartTime
+
+    fileDirectory = testSetDir.split("/")
+    runtimePath = "/".join(fileDirectory[:-1])
+    with open(runtimePath + "/OrthoRuntimes.txt", "a+") as runtimeFile:
+            runtimeFile.write("%f " % (orthoAlignRunTime))
 
 ##
 ## Main
