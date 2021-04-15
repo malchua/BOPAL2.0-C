@@ -45,6 +45,12 @@ def computeGlobalAlignmentMatrix(strain1, strain2):
     eventMatrix = [[None for x in range(0, len(strain2.genomeFragments))] for y in range(0, len(strain1.genomeFragments))]
     # overwrittenEvents = {}
 
+    lastOperonStrain1 = strain1.genomeFragments[len(strain1.genomeFragments)-1]
+    lengthStrain1 = int(lastOperonStrain1.startPositionInGenome) + len(lastOperonStrain1.sequence)
+    lastOperonStrain2 = strain2.genomeFragments[len(strain2.genomeFragments)-1]
+    lengthStrain2 = int(lastOperonStrain2.startPositionInGenome) + len(lastOperonStrain2.sequence)
+    maxAllowedDistance = abs(lengthStrain1 - lengthStrain2)
+
     ####################################
     ##Calculations
     ####################################
@@ -79,7 +85,33 @@ def computeGlobalAlignmentMatrix(strain1, strain2):
                     eventMatrix[x][y] = event
                     globalAlignmentMatrix[x][y] = str(1) + '*'
                 else:
-                    globalAlignmentMatrix[x][y] = -999 #Singletons don't match
+                    firstAttemptEvent = copy.deepcopy(event)
+                    firstAttemptScore, firstAttemptEvent = performGlobalAlignment(op1.sequence, op2.sequence, firstAttemptEvent)
+
+                    bestScore = firstAttemptScore
+                    bestEvent = firstAttemptEvent
+                    bestEvent.setScore(0.0)
+                    eventMatrix[x][y] = bestEvent
+                    globalAlignmentMatrix[x][y] = bestScore
+
+                    if event.fragmentDetails1.isNegativeOrientation == event.fragmentDetails2.isNegativeOrientation:
+                        if event.distance <= maxAllowedDistance:
+                            if globals.printGlobalAlignmentDebug:
+                                print op1.sequence
+                                print op2.sequence
+                                print "Possible substitution:"
+                                print "Lengths of 1 & 2 & max distance: " + str(lengthStrain1) + " " + str(lengthStrain2) + " " + str(maxAllowedDistance)
+                                print "Op1 position: " +  str(op1.startPositionInGenome)
+                                print "Op2 position: " + str(op2.startPositionInGenome)
+                                print "Event Distance: " + str(event.distance)
+
+                                print "Substitutions: " + str(bestEvent.numSubstitutions)
+                                print bestEvent.operon1Alignment
+                                print bestEvent.operon2Alignment
+
+                            globalAlignmentMatrix[x][y] = str(0) + '+'
+                        else:
+                            globalAlignmentMatrix[x][y] = str(0) + '%' #Singletons don't match but could still potentially be a substitution if surrounded fragments consistently match with each other
 
             #Case 3: Both are operons
             elif len(op1.sequence) > 1 and len(op2.sequence) > 1:
@@ -141,10 +173,33 @@ def computeGlobalAlignmentMatrix(strain1, strain2):
                 #if numOperonDifferences <= threshold:
                 if bestScore >= 0:
                     globalAlignmentMatrix[x][y] = str(globalAlignmentMatrix[x][y]) + '*'
+                else:
+                    if event.distance <= maxAllowedDistance:
+                        globalAlignmentMatrix[x][y] = str(0) + '+'
+                    else:
+                        globalAlignmentMatrix[x][y] = str(0) + '%'
 
             #Case 4: One of them is an operon and the other is a singleton
             else:
-                globalAlignmentMatrix[x][y] = -999
+                if (len(op1.sequence) == 1 and op1.description != 'Origin' and op1.description != 'Terminus' and len(op2.sequence) == 2) or (len(op1.sequence) == 2 and len(op2.sequence) == 1 and op2.description != 'Origin' and op2.description != 'Terminus'):
+                    firstAttemptEvent = copy.deepcopy(event)
+                    firstAttemptScore, firstAttemptEvent = performGlobalAlignment(op1.sequence, op2.sequence, firstAttemptEvent)
+
+                    if globals.printGlobalAlignmentDebug:
+                        print "Aligning operon with singleton: "
+                        print op1.sequence
+                        print op2.sequence
+                        print firstAttemptScore
+
+                    if firstAttemptScore >= 0:
+                        bestScore = firstAttemptScore
+                        bestEvent = firstAttemptEvent
+                        bestEvent.setScore(bestScore)
+                        eventMatrix[x][y] = bestEvent
+                        globalAlignmentMatrix[x][y] = str(0) + '!'
+                else:
+                    globalAlignmentMatrix[x][y] = -999
+
 
     ####################################
     ##End of Calculations
@@ -222,7 +277,7 @@ def checkDeletionEvents(gene, position, deletionList, fragmentId):
 # Parameters:
 # Description: Performs a global alignment
 ######################################################
-def performGlobalAlignment(operon1, operon2, event):
+def performGlobalAlignment(operon1, operon2, event, isSingletonGroup = False):
 
     #initialize the distance matrix
     scoreMatrix = np.zeros((len(operon1)+1, len(operon2)+1))
@@ -249,8 +304,6 @@ def performGlobalAlignment(operon1, operon2, event):
 
     #Compute the number of events that occured between the operons
     event = globalAlignmentTraceback(scoreMatrix, operon1, operon2, event)
-    # print operon1
-    # print operon2
     # print scoreMatrix[len(operon1)][len(operon2)]
     # print " "
 
@@ -552,6 +605,47 @@ def scanGlobalAlignmentMatrixForOrthologs(globalAlignmentMatrix, eventMatrix, co
                         bestRow = i
                         bestColumn = j
                         minDistance = currDistance
+
+        if currentScoreSelected == 0 and bestEvent is None:
+            for i in range(0, len(globalAlignmentMatrix)):
+                for j in range(0, len(globalAlignmentMatrix[i])):
+                    #Check if this is a + score and if both operons have not been marked off. Case is for singletons within a certain distance from each other (inferred as a substitution).
+                    if ('+' in str(globalAlignmentMatrix[i][j])) and (coverageTracker1[i] == False) and (coverageTracker2[j] == False):
+                        score = float(str(globalAlignmentMatrix[i][j]).replace('+', ''))
+                        currDistance = eventMatrix[i][j].distance
+
+                        #Check if the score matches the scores we're currently looking for                    
+                        if score == currentScoreSelected and currDistance < minDistance:
+                            bestEvent = eventMatrix[i][j]
+                            bestRow = i
+                            bestColumn = j
+                            minDistance = currDistance
+                    #Check if this is a % score and if both operons have not been marked off. Case is for mismatched singletons within matching neighbours (inferred as a substitution).
+                    elif ('%' in str(globalAlignmentMatrix[i][j])) and (coverageTracker1[i] == False) and (coverageTracker2[j] == False):
+                        # print str(globalAlignmentMatrix[i][j])
+                        score = float(str(globalAlignmentMatrix[i][j]).replace('%', ''))
+                        # print str(i)
+                        # print str(j)
+                        currDistance = eventMatrix[i][j].distance
+
+                        #Check if the score matches the scores we're currently looking for                    
+                        if score == currentScoreSelected and currDistance < minDistance:
+                            if neighbourEventsMatch(eventMatrix, i, j):
+                                bestEvent = eventMatrix[i][j]
+                                bestRow = i
+                                bestColumn = j
+                                minDistance = currDistance
+                    #Check if this is a ! score and if both operons have not been marked off. Case is for a singleton matched with an operon.
+                    elif ('!' in str(globalAlignmentMatrix[i][j])) and (coverageTracker1[i] == False) and (coverageTracker2[j] == False):
+                        score = float(str(globalAlignmentMatrix[i][j]).replace('!', ''))
+                        currDistance = eventMatrix[i][j].distance
+
+                        #Check if the score matches the scores we're currently looking for                    
+                        if score == currentScoreSelected and currDistance < minDistance:
+                            bestEvent = eventMatrix[i][j]
+                            bestRow = i
+                            bestColumn = j
+                            minDistance = currDistance
                         
         if bestEvent != None: #Good match was found so don't increment score incase more are found
             #We found an ortholog in the global alignment matrix
@@ -563,6 +657,12 @@ def scanGlobalAlignmentMatrixForOrthologs(globalAlignmentMatrix, eventMatrix, co
             coverageTracker1[bestRow] = True
             coverageTracker2[bestColumn] = True
             event = eventMatrix[bestRow][bestColumn]
+
+            if globals.printGlobalAlignmentDebug:
+                print "============================================================="
+                print ""
+                print strain1.name + ", Operon " + str(bestRow)
+                print strain2.name + ", Operon " + str(bestColumn)
 
             if neighborEvents != None:
 
@@ -576,9 +676,11 @@ def scanGlobalAlignmentMatrixForOrthologs(globalAlignmentMatrix, eventMatrix, co
                 msaEvent.setTechnique('Multiple Sequence Alignment')
 
                 msaScore, msaEvent = findOrthologsByMultiSequenceAlignment(msaEvent.fragmentDetails1, msaEvent.fragmentDetails2, msaEvent, neighborEvents)
-                if msaScore != -1:
-                    # print "MSA event score " + str(msaScore)
-                    # print "Best event score " + str(bestEvent.score)
+                if msaScore != -2:
+                    if globals.printGlobalAlignmentDebug:
+                        print "MSA event score " + str(msaScore)
+                        print "Best event score " + str(bestEvent.score)
+                        print ""
                     event = msaEvent
                     event.setScore(msaScore)
             
@@ -623,6 +725,85 @@ def scanGlobalAlignmentMatrixForOrthologs(globalAlignmentMatrix, eventMatrix, co
         else:
             currentScoreSelected += (-0.5) #No good match was found so move on
     return events, coverageTracker1, coverageTracker2, globalAlignmentCounter, strain1, strain2
+
+######################################################
+# neighbourEventsMatch
+# Parameters: Event matrix, row position, column position
+# Description: Takes the event at position[row][column] and checks if the neighbour events are matched. 
+######################################################
+def neighbourEventsMatch(eventMatrix, row, column):
+    positiveSlopeUpperScore = False
+    positiveSlopeLowerScore = False
+    negativeSlopeUpperScore = False
+    negativeSlopeLowerScore = False
+
+    # print str(eventMatrix[i+1][j+1].trackingEventId)
+    # print str(eventMatrix[i-1][j-1].trackingEventId)
+
+    if row == 0 and column == 0:
+        positiveSlopeLowerScore = True
+        negativeSlopeUpperScore = True
+        negativeSlopeLowerScore = True
+        if (eventMatrix[row+1][column+1] is not None) and (eventMatrix[row+1][column+1].trackingEventId != 0):
+            positiveSlopeUpperScore = True
+    elif row == 0 and column == len(eventMatrix[0])-1:
+        positiveSlopeUpperScore = True
+        positiveSlopeLowerScore = True
+        negativeSlopeLowerScore = True
+        if (eventMatrix[row+1][column-1] is not None) and (eventMatrix[row+1][column-1].trackingEventId != 0):
+            negativeSlopeUpperScore = True
+    elif row == len(eventMatrix)-1 and column == 0:
+        positiveSlopeUpperScore = True
+        positiveSlopeLowerScore = True
+        negativeSlopeUpperScore = True
+        if (eventMatrix[row-1][column+1] is not None) and (eventMatrix[row-1][column+1].trackingEventId != 0):
+            negativeSlopeLowerScore = True
+    elif row == len(eventMatrix)-1 and len(eventMatrix[0])-1:
+        positiveSlopeUpperScore = True
+        negativeSlopeUpperScore = True
+        negativeSlopeLowerScore = True
+        if (eventMatrix[row-1][column-1] is not None) and (eventMatrix[row-1][column-1].trackingEventId != 0):
+            positiveSlopeLowerScore = True
+    elif row == 0:
+        positiveSlopeLowerScore = True
+        negativeSlopeLowerScore = True
+        if (eventMatrix[row+1][column+1] is not None) and (eventMatrix[row+1][column+1].trackingEventId != 0):
+            positiveSlopeUpperScore = True
+        if (eventMatrix[row+1][column-1] is not None) and (eventMatrix[row+1][column-1].trackingEventId != 0):
+            negativeSlopeUpperScore = True
+    elif column == 0:
+        positiveSlopeLowerScore = True
+        negativeSlopeUpperScore = True
+        if (eventMatrix[row+1][column+1] is not None) and (eventMatrix[row+1][column+1].trackingEventId != 0):
+            positiveSlopeUpperScore = True
+        if (eventMatrix[row-1][column+1] is not None) and (eventMatrix[row-1][column+1].trackingEventId != 0):
+            negativeSlopeLowerScore = True
+    elif row == len(eventMatrix)-1:
+        positiveSlopeUpperScore = True
+        negativeSlopeUpperScore = True
+        if (eventMatrix[row-1][column-1] is not None) and (eventMatrix[row-1][column-1].trackingEventId != 0):
+            positiveSlopeLowerScore = True
+        if (eventMatrix[row-1][column+1] is not None) and (eventMatrix[row-1][column+1].trackingEventId != 0):
+            negativeSlopeLowerScore = True
+    elif column == len(eventMatrix[0])-1:
+        positiveSlopeUpperScore = True
+        negativeSlopeLowerScore = True
+        if (eventMatrix[row-1][column-1] is not None) and (eventMatrix[row-1][column-1].trackingEventId != 0):
+            positiveSlopeLowerScore = True
+        if (eventMatrix[row+1][column-1] is not None) and (eventMatrix[row+1][column-1].trackingEventId != 0):
+            negativeSlopeUpperScore = True
+    else:
+        if (eventMatrix[row+1][column+1] is not None) and (eventMatrix[row+1][column+1].trackingEventId != 0):
+            positiveSlopeUpperScore = True
+        if (eventMatrix[row-1][column-1] is not None) and (eventMatrix[row-1][column-1].trackingEventId != 0):
+            positiveSlopeLowerScore = True
+        if (eventMatrix[row+1][column-1] is not None) and (eventMatrix[row+1][column-1].trackingEventId != 0):
+            negativeSlopeUpperScore = True
+        if (eventMatrix[row-1][column+1] is not None) and (eventMatrix[row-1][column+1].trackingEventId != 0):
+            negativeSlopeLowerScore = True
+
+    return (positiveSlopeLowerScore and positiveSlopeUpperScore) or (negativeSlopeUpperScore and negativeSlopeLowerScore)
+    
 
 ######################################################
 # inversionTranspositionComparison
@@ -878,6 +1059,13 @@ def reconstructOperonSequence(event, strain1, strain2):
 
     operon1Gaps = event.operon1Gaps
     operon2Gaps = event.operon2Gaps
+
+    if globals.printGlobalAlignmentDebug:
+        print "Reconstructing Operon: Dealing with gaps.."
+        print event.operon1Alignment
+        print event.operon2Alignment
+        print event.operon1Gaps
+        print event.operon2Gaps
 
     if len(operon1Gaps) == 0 and len(operon2Gaps) == 0:
         if globals.printToConsole:
@@ -1152,6 +1340,13 @@ def checkForMatchesWithinOperons(genomeFragments, fragment, gap, positions):
     allDuplicationSizes = []
     allDuplicationDetails = ''
 
+    if globals.printGlobalAlignmentDebug:
+        print "Gaps:"
+        print gap
+        print "Positions:"
+        print positions
+        print ""
+
     for w in range(0, len(genomeFragments)): #Iterate through all fragments
         currFragment = genomeFragments[w]
         if currFragment.startPositionInGenome != fragment.startPositionInGenome and len(gap) > 0 and len(currFragment.sequence) > 1: #They're not the same operon and the gap is longer than 0 and the operon is not a singleton
@@ -1176,18 +1371,33 @@ def checkForMatchesWithinOperonsMSA(genomeFragments, fragment, gap, positions, e
     remainingGaps = []
     remainingPositions = []
 
-    if len(gap) == 1:
-        limit = 0
-    else:
-        limit = 1
+    if globals.printGlobalAlignmentDebug:
+        print "New gaps:"
+        print newGaps
+        print "New positions:"
+        print newPositions
+        print "New events:"
+        print newEvents
+        print ""
 
     for u in range(len(newGaps)-1, -1, -1):
         if events[u] == "dup":
             gap = newGaps[u]
+            if globals.printGlobalAlignmentDebug:
+                print "Looking for dup"
+                print gap
+                print "Fragments"
+            if len(gap) == 1:
+                limit = 0
+            else:
+                limit = 1
+
             positions = newPositions[u]
             for w in range(0, len(genomeFragments)): #Iterate through all fragments
                 currFragment = genomeFragments[w]
                 if currFragment.startPositionInGenome != fragment.startPositionInGenome and len(gap) > 0 and len(currFragment.sequence) > 1: #They're not the same operon and the gap is longer than 0 and the operon is not a singleton
+                    if globals.printGlobalAlignmentDebug:
+                        print currFragment.sequence
                     duplicationSizes, duplicationDetails, gap, positions = checkForMatch(gap, positions, currFragment.sequence, fragment, limit)
 
                     if len(duplicationSizes) > 0: #If we found a duplicate, add it to the totals
@@ -1225,6 +1435,8 @@ def checkForMatch(gap, positions, sequence, fragment, size):
                 for y in range(0, len(genes)): #Iterate over all of the genes in the gap
                     if (x+y) < len(sequence) and genes[y] == sequence[y+x]: #Match sure we don't go out of bounds and the genes match
                         genesMatched+=1
+                        if globals.printGlobalAlignmentDebug:
+                            print "found dup"
                 if genesMatched != len(genes): #Reset the counter if we don't find a match for the gap
                     genesMatched = 0
 

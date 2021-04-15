@@ -18,7 +18,7 @@ def findOrthologsByMultiSequenceAlignment(operon1, operon2, event, neighborEvent
     if globals.printToConsole:
         print('Computing multiple sequence alignment matrix for: {%s, %s}...' % (', '.join(map(str, operon1.sequence)), ', '.join(map(str, operon2.sequence))))
 
-    score = -1
+    score = -2
     for neighbourEvent in neighborEvents:
         if operon1.fragmentIndex == neighbourEvent.fragmentDetails1.fragmentIndex and neighbourEvent.genome1Name != neighbourEvent.genome2Name:
             # print "Neighbour Events:"
@@ -36,6 +36,22 @@ def findOrthologsByMultiSequenceAlignment(operon1, operon2, event, neighborEvent
             # print "Sequence: " + '[%s]' % ', '.join(map(str, operon2.sequence))
             # print " "
             score, event = performMultiSequenceAlignment(operon1.sequence, operon2.sequence, neighbourEvent.fragmentDetails2.sequence, event)
+            if globals.printMSADebug:
+                print "MSA operons"
+                print operon1.sequence
+                print operon2.sequence
+                print neighbourEvent.fragmentDetails2.sequence
+                print ""
+                print "Alignment"
+                print event.operon1Alignment
+                print event.operon2Alignment
+
+    if globals.printMSADebug:
+        if score == -2:
+            print "Global Alignment operons"
+            print operon1.sequence
+            print operon2.sequence
+            print ""
             
 
     # print "Traversed neighbour events"
@@ -83,7 +99,6 @@ def performMultiSequenceAlignment(operon1, operon2, operon3, event):
             scoreMatrix[0][b][c], dirMatrix[0][b][c] = findMax(scoreMatrix, 0, b, c, operon1, operon2, operon3)
 
     # Perform the multiple sequence alignment
-    # print ""
     for a in range(1, len(operon1)+1):
         for b in range(1, len(operon2)+1):
             for c in range(1, len(operon3)+1):
@@ -101,11 +116,6 @@ def performMultiSequenceAlignment(operon1, operon2, operon3, event):
         print scoreMatrix
         print dirMatrix
         print ""
-
-    # print operon1
-    # print operon2
-    # print operon3
-    # print ""
 
     # Compute the number of events that occured between the operons
     event = traceback(scoreMatrix, dirMatrix, operon1, operon2, operon3, event)

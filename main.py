@@ -51,10 +51,11 @@ def createAncestor(strain1, strain2, neighborStrain):
     ancestralName = 'Ancestor ' + str(globals.ancestralCounter)
     ancestralFragments = None
 
-    # print strain1.name
-    # print strain2.name
-    # if neighborStrain != None:
-    #     print neighborStrain.name
+    if globals.printMainTesting:
+        print strain1.name
+        print strain2.name
+        if neighborStrain != None:
+            print neighborStrain.name
 
     strain1Copy = copy.deepcopy(strain1) #Do a deep copy of object for when we compare to the neighbor
     neighborCopy = copy.deepcopy(neighborStrain) #Do a deep copy of the neighbor as well b/c we don't want to store those comparisons in the strain either
@@ -81,6 +82,9 @@ def createAncestor(strain1, strain2, neighborStrain):
         if secondPass:
             strain1Copy.resetStrain()
             neighborCopy.resetStrain()
+
+        if globals.printMainTesting:
+            print "Strain1 with neighbour"
         neighborEvents, duplicatesStrain1Copy, duplicatesStrainNeighbor = constructEvents(strain1Copy, neighborCopy)
         
         if globals.printToConsole:
@@ -95,14 +99,19 @@ def createAncestor(strain1, strain2, neighborStrain):
         globals.enableDeletionReversions = True #Only do the backtrace between these two strains!
         globals.enableSelfAlignmentDetails = True
 
-        # print secondPass
+        if globals.printMainTesting:
+            print secondPass
         if secondPass:
-            # print "Second pass"
-            # strain1SecondPassCopy = copy.deepcopy(strain1)
-            # strain2SecondPassCopy = copy.deepcopy(strain2)
+            if globals.printMainTesting:
+                print "Second pass"
+                strain1SecondPassCopy = copy.deepcopy(strain1)
+                strain2SecondPassCopy = copy.deepcopy(strain2)
             strain1.resetStrain()
             strain2.resetStrain()
 
+        if globals.printMainTesting:
+            print "***********************************************************"
+            print "Strain1 and Strain2"
         events, duplicatesStrain1, duplicatesStrain2 = constructEvents(strain1, strain2, neighborEvents)
 
         globals.enableSelfAlignmentDetails = False
@@ -128,10 +137,12 @@ def createAncestor(strain1, strain2, neighborStrain):
 
     #Compare one of the siblings to the neighbor if one exists
     if neighborCopy != None:
-        # print "using neighbour"
+        if globals.printMainTesting:
+            print "using neighbour"
         ancestralFragments, strain1, strain2 = determineAncestralFragmentArrangementUsingNeighbor(FCR, TR, IR, ITR, lostPoints, NFCR, NTR, NIR, NITR, neighborLostPoints, strain1, strain2)
     else:
-        # print "not using neighbour"
+        if globals.printMainTesting:
+            print "not using neighbour"
         if neighborCopy == None:
             if globals.printToConsole:
                 print('No neighbor found!')
@@ -371,6 +382,17 @@ def constructEvents(strain1, strain2, neighborEvents=None):
     if globals.printToConsole:
         print('Performing global alignment with: %s, %s' % (strain1.name, strain2.name))
     events, coverageTracker1, coverageTracker2, globalAlignmentCounter, strain1, strain2 = findOrthologsByGlobalAlignment(strain1, strain2, coverageTracker1, coverageTracker2, neighborEvents)
+    
+    if globals.printMainTesting:
+        print coverageTracker1
+        print coverageTracker2
+
+        print "After finding orthologs by global alignment"
+        for event in events:
+            print event.fragmentDetails1.description
+            print event.fragmentDetails1.sequence
+            print event.fragmentDetails2.description
+            print event.fragmentDetails2.sequence
 
     numRemainingOperons1 = countRemainingOperons(coverageTracker1)
     numRemainingOperons2 = countRemainingOperons(coverageTracker2)
@@ -393,15 +415,21 @@ def constructEvents(strain1, strain2, neighborEvents=None):
 #            events.extend(localAlignmentEvents)
 
     #Self Global Alignment
+    if globals.printMainTesting:
+        print " "
     if numRemainingOperons1 > 0:
+        if globals.printMainTesting:
+            print "Remaining operons in strain1"
         #Remember to insert the deletions into the sibling (that's how we defined it)
-        duplicationEvents1, lossEvents1, coverageTracker1, strain1, strain2 = findOrthologsBySelfGlobalAlignment(strain1, coverageTracker1, strain2)
+        duplicationEvents1, lossEvents1, coverageTracker1, strain1, strain2 = findOrthologsBySelfGlobalAlignment(strain1, coverageTracker1, strain2, neighborEvents)
         if globals.printToConsole:
             print('%s, duplicates identified %s and losses identified %s' % (strain1.name, len(duplicationEvents1), len(lossEvents1)))
 
     if numRemainingOperons2 > 0:
+        if globals.printMainTesting:
+            print "Remaining operons in strain2"
         #Remember to insert the deletions into the sibling (that's how we defined it)
-        duplicationEvents2, lossEvents2, coverageTracker2, strain2, strain1 = findOrthologsBySelfGlobalAlignment(strain2, coverageTracker2, strain1)
+        duplicationEvents2, lossEvents2, coverageTracker2, strain2, strain1 = findOrthologsBySelfGlobalAlignment(strain2, coverageTracker2, strain1, neighborEvents)
         if globals.printToConsole:
             print('%s, duplicates identified %s and losses identified %s' % (strain2.name, len(duplicationEvents2), len(lossEvents2)))
 
@@ -546,7 +574,7 @@ def traverseNewickTreeAndOutputToFile2(node):
         if foundStrain != None:
             updateCounters(foundStrain)
             outputStrainDetailsToFile(outputFileName, foundStrain)
-            outputGenomeToFile(node.name + ".txt", foundStrain)
+            outputGenomeToFile("app-" + node.name + ".txt", foundStrain)
 
 ######################################################
 # updateCounters
@@ -591,7 +619,7 @@ def traverseNewickTreeAndOutputToFile(node):
         if foundStrain != None:
             # print node.name
             outputStrainDetailsToFile(outputFileName, foundStrain)
-            outputGenomeToFile(node.name + ".txt", foundStrain)
+            outputGenomeToFile("app-" + node.name + ".txt", foundStrain)
 
 ######################################################
 # traverseNewickTree

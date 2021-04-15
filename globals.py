@@ -5,6 +5,18 @@ def initialize():
     
     global printToConsole
     printToConsole = False
+
+    global printMainTesting
+    printMainTesting = False
+
+    global printGlobalAlignmentDebug
+    printGlobalAlignmentDebug = False
+
+    global printMSADebug
+    printMSADebug = False
+
+    global printSelfGlobalAlignmentDebug
+    printSelfGlobalAlignmentDebug = True
     
     global enableDeletionReversions
     enableDeletionReversions = False

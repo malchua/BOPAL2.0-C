@@ -15,13 +15,15 @@ import copy
 # Parameters:
 # Description: Performs a self global alignment to identify duplicate operons
 ######################################################
-def findOrthologsBySelfGlobalAlignment(strain, coverageTracker, sibling):
+def findOrthologsBySelfGlobalAlignment(strain, coverageTracker, sibling, neighborEvents):
     if globals.printToConsole:
         print('Performing self-global alignment on strain: %s' %(strain.name))
         
     lossEvents = []
     duplicationEvents = []
     fragments = strain.genomeFragments
+    if globals.printSelfGlobalAlignmentDebug:
+        print "Self global alignment strain: " + strain.name
     
     for i in range(0, len(coverageTracker)):
         if coverageTracker[i] == False: #Operon has not been marked
@@ -32,6 +34,9 @@ def findOrthologsBySelfGlobalAlignment(strain, coverageTracker, sibling):
             
             filteredList = iter(filter(lambda x:x.fragmentIndex == i, fragments)) #Get the fragment we need based on the index
             unmarkedFragment = next(filteredList, None)
+            if globals.printSelfGlobalAlignmentDebug:
+                print "Index " + str(i)
+                print unmarkedFragment.sequence
             
             if len(unmarkedFragment.sequence) > 1: #We're processing an operon
                 for j in range(0, len(coverageTracker)):
@@ -64,6 +69,7 @@ def findOrthologsBySelfGlobalAlignment(strain, coverageTracker, sibling):
                             bestJ = j
             #Make sure an origin or a terminus doesn't get mapped with a singleton gene
             elif len(unmarkedFragment.sequence) == 1 and unmarkedFragment.description != 'Origin' and unmarkedFragment.description != 'Terminus':
+                # if neighborEvents != None and not foundInNeighbour(strain.name, neighborEvents, unmarkedFragment.fragmentIndex):
                 for j in range(0, len(coverageTracker)):
                     
                     filteredList = iter(filter(lambda x:x.fragmentIndex == j, fragments)) #Get the fragment we need based on the index
@@ -117,6 +123,8 @@ def findOrthologsBySelfGlobalAlignment(strain, coverageTracker, sibling):
                     tempString = gene + ' ' + str(position) + ';'
                     strain = addDuplicationEventsToStrain(strain, [1], tempString)
                 duplicationEvents.append(bestEvent)
+                if globals.printSelfGlobalAlignmentDebug:
+                    print "Duplication"
                 
                 #This is now being handled with the function handleDuplicateDetails
                 #duplicationDetails = ''
@@ -152,6 +160,8 @@ def findOrthologsBySelfGlobalAlignment(strain, coverageTracker, sibling):
                 event.setTechnique('Self Global Alignment (No match!)')
                 event.setAncestralOperonGeneSequence(copy.deepcopy(unmarkedFragment.sequence))
                 lossEvents.append(event)
+                if globals.printSelfGlobalAlignmentDebug:
+                    print "Loss"
                 
                 position = event.fragmentDetails1.startPositionInGenome
                 op = copy.deepcopy(event.fragmentDetails1.sequence)
@@ -173,8 +183,20 @@ def findOrthologsBySelfGlobalAlignment(strain, coverageTracker, sibling):
                     print('\n&&&&&& Self Global Alignment &&&&&')
                     print(event.toString())
                     print('&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&\n')
-                    
+    if globals.printSelfGlobalAlignmentDebug:
+        print " "                
     return duplicationEvents, lossEvents, coverageTracker, strain, sibling
+
+def foundInNeighbour(strainName, neighbourEvents, fragmentIndex):
+
+    if strainName == neighbourEvents[0].genome1Name or strainName == neighbourEvents[0].genome2Name:
+        for neighbourEvent in neighbourEvents:
+            if fragmentIndex == neighbourEvent.fragmentDetails1.fragmentIndex and neighbourEvent.genome1Name != neighbourEvent.genome2Name:
+                print fragmentIndex
+                print neighbourEvent.fragmentDetails2.fragmentIndex
+                return True
+
+    return False
 
 ######################################################
 # handleDuplicateDetails
